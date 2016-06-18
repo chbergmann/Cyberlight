@@ -216,11 +216,11 @@ boolean Plugin_001(byte function, struct EventStruct *event, String& string)
           success = true;
           if (event->Par1 >= 0 && event->Par1 <= 16)
           {
-            pinMode(event->Par1, OUTPUT);
             digitalWrite(event->Par1, event->Par2);
+            pinMode(event->Par1, OUTPUT);
             setPinState(PLUGIN_ID_001, event->Par1, PIN_MODE_OUTPUT, event->Par2);
             log = String(F("SW   : GPIO ")) + String(event->Par1) + String(F(" Set to ")) + String(event->Par2);
-            addLog(LOG_LEVEL_INFO, log);
+              addLog(LOG_LEVEL_INFO, log);
             SendStatus(event->Source, getPinStateJSON(SEARCH_PIN_STATE, PLUGIN_ID_001, event->Par1, log, 0));
           }
         }
