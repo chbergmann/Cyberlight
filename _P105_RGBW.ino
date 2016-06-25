@@ -394,12 +394,14 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			MiLightUpdate = true;
 			Plugin_105_MiLight.ColourOn = true;
       Plugin_105_MiLight.RGBWhiteOn = false;
+			Plugin_105_MiLight.LumLevel = 0.5;
 			break;
 		}
 		case 78:	//brightness
 		{
-			Plugin_105_MiLight.LumLevel = Plugin_105_UDPParameter;
-			Plugin_105_MiLight.LumLevel = Plugin_105_MiLight.LumLevel / 50;
+			float brightness = Plugin_105_UDPParameter;
+			Plugin_105_MiLight.LumLevel = (brightness - 3) / 22;
+
 			MiLightUpdate = true;
 			break;
 		}
@@ -431,7 +433,15 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			MiLightUpdate = true;
 			break;
 		}
-    case 194:
+		case 193:	// Night
+		{
+			int i;
+			for(i=0; i<4; i++)
+				Plugin_105_Pins[i].CurrentLevel = 0;
+
+      break;
+		}
+    case 194:	// White
     {
       Plugin_105_MiLight.ColourOn = false;
       Plugin_105_MiLight.RGBWhiteOn = true;
@@ -445,15 +455,16 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			if (Plugin_105_MiLight.ColourOn == true)
 			{
 				Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
-			}else if (Plugin_105_MiLight.RGBWhiteOn == true)
+			}
+			if (Plugin_105_MiLight.RGBWhiteOn == true)
      	{
-        Plugin_105_Pins[3].CurrentLevel = (Plugin_105_MiLight.LumLevel * 2 * 1023);
+        Plugin_105_Pins[3].CurrentLevel = (Plugin_105_MiLight.LumLevel * 1023);
      	}
 
 		 	int i;
 		 	for(i=0; i<4; i++)
       	analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
-
+/*
       Serial.print("Setting RGB To: ");
       Serial.print(Plugin_105_Pins[0].CurrentLevel);
       Serial.print(", ");
@@ -462,7 +473,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
       Serial.print(Plugin_105_Pins[2].CurrentLevel);
       Serial.print(", ");
       Serial.println(Plugin_105_Pins[3].CurrentLevel);
-
+*/
 		}
 	}
 
