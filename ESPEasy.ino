@@ -530,11 +530,27 @@ void setup()
     if (Settings.UseSerial && Settings.SerialLogLevel >= LOG_LEVEL_DEBUG_MORE)
       Serial.setDebugOutput(true);
 
+    hardwareInit();
+
+    LoadPinStates();
+    int i;
+    for(i=0; i<PINSTATE_TABLE_MAX; i++)
+    {
+      if(pinStates[i].plugin > 0)
+      {
+        Serial.printf("Setting pin %d to %d\r\n", pinStates[i].index, pinStates[i].value);
+
+        if(pinStates[i].mode == PIN_MODE_OUTPUT)
+          digitalWrite(pinStates[i].index, pinStates[i].value);
+        else if(pinStates[i].mode == PIN_MODE_PWM)
+          analogWrite(pinStates[i].index, pinStates[i].value);
+      }
+    }
+
     WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
     WifiAPconfig();
     WifiConnect(3);
 
-    hardwareInit();
     PluginInit();
     CPluginInit();
 
@@ -592,7 +608,7 @@ void setup()
       for (byte x = 0; x < TASKS_MAX; x++)
         if (Settings.TaskDeviceTimer[x] !=0)
           timerSensor[x] = millis() + 30000 + (x * Settings.MessageDelay);
-      
+
       timer = millis() + 30000; // startup delay 30 sec
     }
     else
@@ -785,7 +801,7 @@ void runEach30Seconds()
     loopCounterMax = loopCounterLast;
 
   WifiCheck();
-  
+
 }
 
 
@@ -867,7 +883,7 @@ void SensorSendTask(byte TaskIndex)
     if (success)
     {
       for (byte varNr = 0; varNr < VARS_PER_TASK; varNr++)
-      {  
+      {
         if (ExtraTaskSettings.TaskDeviceFormula[varNr][0] != 0)
         {
           String spreValue = String(preValue[varNr]);
@@ -988,4 +1004,3 @@ void backgroundtasks()
   statusLED(false);
   yield();
 }
-

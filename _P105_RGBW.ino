@@ -14,7 +14,7 @@ int Plugin_105_FadingRate = 50; //   was 10hz
 unsigned int Plugin_105_UDPCmd = 0;
 unsigned int Plugin_105_UDPParameter = 0;
 Ticker Plugin_105_Ticker;
-
+int saveTimeCount = 0;
 
 struct Plugin_105_structPins
 {
@@ -132,8 +132,15 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			Plugin_105_Pins[PinIndex].PinNo = ExtraTaskSettings.TaskDevicePluginConfigLong[PinIndex + 1];
 			if (Plugin_105_Pins[PinIndex].PinNo != 0)
 			{
-				pinMode(Plugin_105_Pins[PinIndex].PinNo, OUTPUT);
-				digitalWrite(Plugin_105_Pins[PinIndex].PinNo, LOW);
+				byte mode;
+				uint16_t value;
+				getPinState(PLUGIN_ID_105, Plugin_105_Pins[PinIndex].PinNo, &mode, &value);
+        if(mode == PIN_MODE_OUTPUT)
+          digitalWrite(Plugin_105_Pins[PinIndex].PinNo, value);
+        else if(mode == PIN_MODE_PWM)
+          analogWrite(Plugin_105_Pins[PinIndex].PinNo, value);
+
+				Plugin_105_Pins[PinIndex].CurrentLevel = value;
 				SetupTimer = true;
 			}
 		}
@@ -166,12 +173,14 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 					int len = Plugin_105_milightUDP.read(packetBuffer, 128);
 					if (len == 3 && packetBuffer[2] == 85)
 					{
+						/*
 					  Serial.print("Commands received ");
 					  Serial.print(int(packetBuffer[0]));
             Serial.print(", ");
 					  Serial.println(int(packetBuffer[1]));
             //Serial.print(", ");
 					  //Serial.print(int(packetBuffer[2]));
+						*/
 						Plugin_105_UDPCmd = packetBuffer[0];
 						Plugin_105_UDPParameter = packetBuffer[1];
 						Plugin_105_ProcessUDP();
@@ -217,6 +226,32 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 
 		success = true;
 		break;
+	}
+
+	case PLUGIN_ONCE_A_SECOND:
+	{
+		int i;
+		bool save = false;
+
+		saveTimeCount++;
+
+		if(saveTimeCount > 5)
+		{
+			saveTimeCount = 0;
+			for(i=0; i<4; i++)
+			{
+				byte mode;
+				uint16_t value;
+				getPinState(PLUGIN_ID_105, Plugin_105_Pins[i].PinNo, &mode, &value);
+				if(Plugin_105_Pins[i].CurrentLevel != value)
+				{
+					setPinState(PLUGIN_ID_105, Plugin_105_Pins[i].PinNo, PIN_MODE_PWM, Plugin_105_Pins[i].CurrentLevel);
+					save = true;
+				}
+			}
+			if(save)
+				SavePinStates();
+		}
 	}
 
 	case PLUGIN_WRITE:

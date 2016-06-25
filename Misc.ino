@@ -290,7 +290,7 @@ void taskClear(byte taskIndex, boolean save)
 
   for (byte varNr = 0; varNr < PLUGIN_EXTRACONFIGVAR_MAX; varNr++)
     ExtraTaskSettings.TaskDevicePluginConfigLong[varNr] = 0;
-  
+
   if (save)
   {
     SaveTaskSettings(taskIndex);
@@ -567,6 +567,14 @@ void SaveSettings(void)
 #endif
 }
 
+void SavePinStates(void)
+{
+#if FEATURE_SPIFFS
+  SaveToFile((char*)"pinstates.txt", 0, (byte*)&pinStates, sizeof(pinStates));
+#else
+  SaveToFlash(sizeof(struct SettingsStruct), (byte*)&pinStates, sizeof(pinStates));
+#endif
+}
 
 /********************************************************************************************\
   Load settings from SPIFFS
@@ -582,6 +590,14 @@ boolean LoadSettings()
 #endif
 }
 
+void LoadPinStates(void)
+{
+#if FEATURE_SPIFFS
+  LoadFromFile((char*)"pinstates.txt", 0, (byte*)&pinStates, sizeof(pinStates));
+#else
+  LoadFromFlash(sizeof(struct SettingsStruct), (byte*)&pinStates, sizeof(pinStates));
+#endif
+}
 
 /********************************************************************************************\
   Save Task settings to SPIFFS
@@ -866,7 +882,7 @@ void ResetFactory(void)
 
   LoadSettings();
   // now we set all parameters that need to be non-zero as default value
-  
+
 #if DEFAULT_USE_STATIC_IP
   str2ip((char*)DEFAULT_IP, Settings.IP);
   str2ip((char*)DEFAULT_DNS, Settings.DNS);
@@ -1195,7 +1211,7 @@ String parseTemplate(String &tmpString, byte lineSize)
                 {
                   // here we know the task and value, so find the uservar
                   String value = toString(UserVar[y * VARS_PER_TASK + z], ExtraTaskSettings.TaskDeviceValueDecimals[z]);
-                  
+
                   if (valueFormat == "R")
                   {
                     int filler = lineSize - newString.length() - value.length() - tmpString.length() ;
@@ -1746,7 +1762,7 @@ void rulesProcessing(String& event)
       nestingLevel--;
       return;
     }
-  
+
   log = F("EVENT: ");
   log += event;
   addLog(LOG_LEVEL_INFO, log);
@@ -1787,7 +1803,7 @@ void rulesProcessing(String& event)
         int comment = line.indexOf("//");
         if (comment > 0)
           line = line.substring(0, comment);
-          
+
         line = parseTemplate(line, line.length());
         line.trim();
 
@@ -1908,7 +1924,7 @@ boolean ruleMatch(String& event, String& rule)
       tmpEvent = event.substring(0,pos1);
       tmpRule  = rule.substring(0,pos2);
       if (tmpRule.equalsIgnoreCase(tmpEvent)) // if this is a clock rule
-      { 
+      {
         tmpEvent = event.substring(pos1 + 1);
         tmpRule  = rule.substring(pos2 + 1);
         unsigned long clockEvent = string2TimeLong(tmpEvent);
