@@ -34,6 +34,7 @@ struct Plugin_105_structRGBFlasher
 	unsigned int Red = 0;
 	unsigned int Green = 0;
 	unsigned int Blue = 0;
+	unsigned int White = 0;
 } Plugin_105_RGBFlasher;
 
 struct Plugin_105_structMiLight
@@ -210,10 +211,10 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			}
 
 			//Fading - moved to timer section
-			
+
 
 		}
-		
+
 		success = true;
 		break;
 	}
@@ -225,7 +226,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 		command[0] = 0;
 		char TmpStr1[80];
 		TmpStr1[0] = 0;
-Serial.println(string);
+//Serial.println(string);
 		string.toCharArray(command, 80);
 		Par[1] = 0;
 		Par[2] = 0;
@@ -265,7 +266,7 @@ Serial.println(string);
 				{
 					Plugin_105_Pins[PinIndex].FadingDirection = 0;
 					Plugin_105_Pins[PinIndex].CurrentLevel = Plugin_105_Pins[PinIndex].FadingTargetLevel;
-				}	
+				}
 			}
 
 			if (printToWeb)
@@ -278,12 +279,12 @@ Serial.println(string);
 			addLog(LOG_LEVEL_INFO, "Start PWM Flash");
 		}
 
-		//initialise LED Fading pin 0=r,1=g,2=b,3=w 
+		//initialise LED Fading pin 0=r,1=g,2=b,3=w
 		if (tmpString.equalsIgnoreCase("PWMFADE"))
 		{
 			success = true;
 			if (Par[2] >= 0 && Par[2] <= 1023 && Par[1] >= 0 && Par[1] <= 3 && Par[3] > 0 && Par[3] < 30)
-			{	
+			{
 				if (Par[1] == 3 || (Plugin_105_RGBFlasher.Count == 0 && Plugin_105_RGBFlasher.OnOff == 0)) //white pin or no flashing going so init fade
 				{
 					Plugin_105_Pins[Par[1]].FadingTargetLevel = Par[2];
@@ -365,9 +366,9 @@ Serial.println(string);
 		{
 		  if (Plugin_105_RGBFlasher.Count == 0) //only change led colour if not flashing, selected colour will be applied after flashing concludes
       {
-        analogWrite(Plugin_105_Pins[0].PinNo, 0);
-        analogWrite(Plugin_105_Pins[1].PinNo, 0);
-        analogWrite(Plugin_105_Pins[2].PinNo, 0);
+				int i;
+				for(i=0; i<4; i++)
+        	analogWrite(Plugin_105_Pins[i].PinNo, 0);
       }
 			break;
 		}
@@ -379,7 +380,7 @@ Serial.println(string);
       {
         Plugin_105_MiLight.RGBWhiteOn = true;
       }
-      
+
       MiLightUpdate = true;
 			break;
 		}
@@ -445,21 +446,23 @@ Serial.println(string);
 			{
 				Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
 			}else if (Plugin_105_MiLight.RGBWhiteOn == true)
-     {
-        Plugin_105_Pins[0].CurrentLevel = Plugin_105_Pins[1].CurrentLevel = Plugin_105_Pins[2].CurrentLevel = (Plugin_105_MiLight.LumLevel * 2 * 1023);
-     }
-     
-      analogWrite(Plugin_105_Pins[0].PinNo, Plugin_105_Pins[0].CurrentLevel);
-      analogWrite(Plugin_105_Pins[1].PinNo, Plugin_105_Pins[1].CurrentLevel);
-      analogWrite(Plugin_105_Pins[2].PinNo, Plugin_105_Pins[2].CurrentLevel);
-      
+     	{
+        Plugin_105_Pins[3].CurrentLevel = (Plugin_105_MiLight.LumLevel * 2 * 1023);
+     	}
+
+		 	int i;
+		 	for(i=0; i<4; i++)
+      	analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+
       Serial.print("Setting RGB To: ");
       Serial.print(Plugin_105_Pins[0].CurrentLevel);
       Serial.print(", ");
       Serial.print(Plugin_105_Pins[1].CurrentLevel);
       Serial.print(", ");
-      Serial.println(Plugin_105_Pins[2].CurrentLevel);
-      
+      Serial.print(Plugin_105_Pins[2].CurrentLevel);
+      Serial.print(", ");
+      Serial.println(Plugin_105_Pins[3].CurrentLevel);
+
 		}
 	}
 
@@ -478,14 +481,14 @@ Serial.println(string);
 		float r = 0;
 		float g = 0;
 		float b = 0;
-    
+/*
     Serial.print("Setting HSL To: ");
     Serial.print(h);
     Serial.print(", ");
     Serial.print(s);
     Serial.print(", ");
     Serial.println(l);
-    
+*/
 		if (s == 0)
 		{
 			r = 1;
