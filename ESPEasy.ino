@@ -532,21 +532,6 @@ void setup()
 
     hardwareInit();
 
-    LoadPinStates();
-    int i;
-    for(i=0; i<PINSTATE_TABLE_MAX; i++)
-    {
-      if(pinStates[i].plugin > 0)
-      {
-        Serial.printf("Setting pin %d to %d\r\n", pinStates[i].index, pinStates[i].value);
-
-        if(pinStates[i].mode == PIN_MODE_OUTPUT)
-          digitalWrite(pinStates[i].index, pinStates[i].value);
-        else if(pinStates[i].mode == PIN_MODE_PWM)
-          analogWrite(pinStates[i].index, pinStates[i].value);
-      }
-    }
-
     WiFi.persistent(false); // Do not use SDK storage of SSID/WPA parameters
     WifiAPconfig();
     WifiConnect(3);
