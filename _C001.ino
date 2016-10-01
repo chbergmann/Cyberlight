@@ -16,13 +16,8 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
       {
         Protocol[++protocolCount].Number = CPLUGIN_ID_001;
         Protocol[protocolCount].usesMQTT = false;
-        #if ESP_CORE >= 210
-          Protocol[protocolCount].usesAccount = true;
-          Protocol[protocolCount].usesPassword = true;
-        #else
-          Protocol[protocolCount].usesAccount = false;
-          Protocol[protocolCount].usesPassword = false;
-        #endif
+        Protocol[protocolCount].usesAccount = true;
+        Protocol[protocolCount].usesPassword = true;
         Protocol[protocolCount].defaultPort = 8080;
         break;
       }
@@ -36,7 +31,6 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
     case CPLUGIN_PROTOCOL_SEND:
       {
         String authHeader = "";
-        #if ESP_CORE >= 210
         if ((SecuritySettings.ControllerUser[0] != 0) && (SecuritySettings.ControllerPassword[0] != 0))
         {
           base64 encoder;
@@ -45,7 +39,6 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
           auth += SecuritySettings.ControllerPassword;
           authHeader = "Authorization: Basic " + encoder.encode(auth) + " \r\n";
         }
-        #endif
         
         char log[80];
         boolean success = false;
@@ -82,6 +75,12 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
             url += F("&svalue=");
             url += (unsigned long)UserVar[event->BaseVarIndex] + ((unsigned long)UserVar[event->BaseVarIndex + 1] << 16);
             break;
+          case SENSOR_TYPE_DUAL:                       // any sensor that uses two simple values
+            url += F("&svalue=");
+            url += toString(UserVar[event->BaseVarIndex],ExtraTaskSettings.TaskDeviceValueDecimals[0]);
+            url += ";";
+            url += toString(UserVar[event->BaseVarIndex + 1],ExtraTaskSettings.TaskDeviceValueDecimals[1]);
+            break;            
           case SENSOR_TYPE_TEMP_HUM:                      // temp + hum + hum_stat, used for DHT11
             url += F("&svalue=");
             url += toString(UserVar[event->BaseVarIndex],ExtraTaskSettings.TaskDeviceValueDecimals[0]);
