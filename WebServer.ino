@@ -207,6 +207,11 @@ void handle_root() {
 
     reply += F("<TR><TD>Build:<TD>");
     reply += BUILD;
+    reply += F(" ");
+    reply += F(BUILD_NOTES);
+
+    reply += F("<TR><TD>Core Version:<TD>");
+    reply += ESP.getCoreVersion();
 
     reply += F("<TR><TD>Unit:<TD>");
     reply += Settings.Unit;
@@ -231,6 +236,15 @@ void handle_root() {
 
     reply += F("<TR><TD>Flash Size:<TD>");
     reply += ESP.getFlashChipRealSize() / 1024; //ESP.getFlashChipSize();
+    reply += F(" kB");
+
+    reply += F("<TR><TD>Flash Writes (since boot):<TD>");
+    reply += flashWrites;
+
+    reply += F("<TR><TD>Sketch Size/Free:<TD>");
+    reply += ESP.getSketchSize() / 1024;
+    reply += F(" kB / ");
+    reply += ESP.getFreeSketchSpace() / 1024;
     reply += F(" kB");
 
     reply += F("<TR><TD>Free Mem:<TD>");
@@ -341,13 +355,15 @@ void handle_config() {
       Settings.Protocol = protocol.toInt();
       byte ProtocolIndex = getProtocolIndex(Settings.Protocol);
       Settings.ControllerPort = Protocol[ProtocolIndex].defaultPort;
-      if (Protocol[ProtocolIndex].usesMQTT)
+      if (Protocol[ProtocolIndex].usesTemplate)
         CPlugin_ptr[ProtocolIndex](CPLUGIN_PROTOCOL_TEMPLATE, 0, dummyString);
     }
     else
     {
       if (Settings.Protocol != 0)
       {
+        byte ProtocolIndex = getProtocolIndex(Settings.Protocol);
+        CPlugin_ptr[ProtocolIndex](CPLUGIN_WEBFORM_SAVE, 0, dummyString);
         Settings.UseDNS = usedns.toInt();
         if (Settings.UseDNS)
         {
@@ -395,7 +411,7 @@ void handle_config() {
   reply += SecuritySettings.Password;
   reply += F("'><TR><TD>SSID:<TD><input type='text' name='ssid' value='");
   reply += SecuritySettings.WifiSSID;
-  reply += F("'><TR><TD>WPA Key:<TD><input type='text' maxlength='63' name='key' value='");
+  reply += F("'><TR><TD>WPA Key:<TD><input type='password' maxlength='63' name='key' value='");
   reply += SecuritySettings.WifiKey;
 
   reply += F("'><TR><TD>WPA AP Mode Key:<TD><input type='text' maxlength='63' name='apkey' value='");
@@ -479,6 +495,9 @@ void handle_config() {
       reply += SecuritySettings.ControllerPassword;
     }
     reply += F("'>");
+
+    CPlugin_ptr[ProtocolIndex](CPLUGIN_WEBFORM_LOAD, 0, reply);
+
   }
 
   reply += F("<TR><TD>Sensor Delay:<TD><input type='text' name='delay' value='");
@@ -1027,6 +1046,20 @@ void handle_devices() {
               reply += F("<a class=\"button-link\" href=\"http://www.esp8266.nu/index.php/EasyFormula\" target=\"_blank\">?</a>");
           }
         }
+        else
+        {
+          if (Device[DeviceIndex].DecimalsOnly)
+            for (byte varNr = 0; varNr < Device[DeviceIndex].ValueCount; varNr++)
+            {
+              reply += F("<TR><TD>Decimals ");
+              reply += ExtraTaskSettings.TaskDeviceValueNames[varNr];
+              reply += F(":<TD><input type='text' name='taskdevicevaluedecimals");
+              reply += varNr + 1;
+              reply += F("' value='");
+              reply += ExtraTaskSettings.TaskDeviceValueDecimals[varNr];
+              reply += F("'>");
+            }
+        }
 
         for (byte varNr = 0; varNr < Device[DeviceIndex].ValueCount; varNr++)
         {
@@ -1437,7 +1470,9 @@ void handle_i2cscanner() {
         case 0x24:
           reply += F("PN532 RFID Reader");
           break;
+        case 0x29:
         case 0x39:
+        case 0x49:
           reply += F("TLS2561 Lux Sensor");
           break;
         case 0x3C:
@@ -1450,6 +1485,9 @@ void handle_i2cscanner() {
         case 0x48:
           reply += F("PCF8591 ADC");
           break;
+        case 0x5C:
+          reply += F("DHT12/BH1750 Lux Sensor");
+          break;
         case 0x68:
           reply += F("DS1307 RTC");
           break;
@@ -1457,7 +1495,8 @@ void handle_i2cscanner() {
           reply += F("BME280/BMP280/MS5607/MS5611");
           break;
         case 0x77:
-          reply += F("BMP085/MS5607/MS5611");
+          reply += F("BMP085/");
+          reply += F("BME280/BMP280/MS5607/MS5611"); //pm-cz Optimization should recycle this string from above
           break;
         case 0x7f:
           reply += F("Arduino Pro Mini IO Extender");
@@ -1569,7 +1608,7 @@ void handle_control() {
     eventBuffer = webrequest.substring(6);
     WebServer.send(200, "text/html", "OK");
   }
-  
+
   struct EventStruct TempEvent;
   parseCommandString(&TempEvent, webrequest);
   TempEvent.Source = VALUE_SOURCE_HTTP;
@@ -1705,6 +1744,7 @@ void handle_advanced() {
   String globalsync = WebServer.arg("globalsync");
   String userules = WebServer.arg("userules");
   String cft = WebServer.arg("cft");
+  String MQTTRetainFlag = WebServer.arg("mqttretainflag");
 
   if (edit.length() != 0)
   {
@@ -1732,13 +1772,16 @@ void handle_advanced() {
     Settings.DST = (dst == "on");
     Settings.WDI2CAddress = wdi2caddress.toInt();
     Settings.UseSSDP = (usessdp == "on");
-#if ESP_CORE >= 210
     Settings.WireClockStretchLimit = wireclockstretchlimit.toInt();
-#endif
     Settings.UseRules = (userules == "on");
     Settings.GlobalSync = (globalsync == "on");
     Settings.ConnectionFailuresThreshold = cft.toInt();
+    Settings.MQTTRetainFlag = (MQTTRetainFlag == "on");
     SaveSettings();
+#if FEATURE_TIME
+    if (Settings.UseNTP)
+      initTime();
+#endif
   }
 
   String reply = "";
@@ -1755,7 +1798,13 @@ void handle_advanced() {
   reply += F("'><TR><TD>Publish Template:<TD><input type='text' name='mqttpublish' size=80 value='");
   reply += Settings.MQTTpublish;
 
-  reply += F("'><TR><TD>Message Delay (ms):<TD><input type='text' name='messagedelay' value='");
+  reply += F("'><TR><TD>MQTT Retain Msg:<TD>");
+  if (Settings.MQTTRetainFlag)
+    reply += F("<input type=checkbox name='mqttretainflag' checked>");
+  else
+    reply += F("<input type=checkbox name='mqttretainflag'>");
+
+  reply += F("<TR><TD>Message Delay (ms):<TD><input type='text' name='messagedelay' value='");
   reply += Settings.MessageDelay;
 
   reply += F("'><TR><TD>Fixed IP Octet:<TD><input type='text' name='ip' value='");
@@ -1772,7 +1821,7 @@ void handle_advanced() {
   reply += F("<TR><TD>NTP Hostname:<TD><input type='text' name='ntphost' size=64 value='");
   reply += Settings.NTPHost;
 
-  reply += F("'><TR><TD>Timezone Offset:<TD><input type='text' name='timezone' size=2 value='");
+  reply += F("'><TR><TD>Timezone Offset: (Minutes)<TD><input type='text' name='timezone' size=2 value='");
   reply += Settings.TimeZone;
   reply += F("'>");
 
@@ -1836,19 +1885,17 @@ void handle_advanced() {
   reply += Settings.ConnectionFailuresThreshold;
   reply += F("'>");
 
-  reply += F("<TR><TH>Experimental Settings<TH>Value");
-
-#if ESP_CORE >= 210
-  reply += F("<TR><TD>I2C ClockStretchLimit:<TD><input type='text' name='wireclockstretchlimit' value='");
-  reply += Settings.WireClockStretchLimit;
-  reply += F("'>");
-#endif
-
   reply += F("<TR><TD>Rules:<TD>");
   if (Settings.UseRules)
     reply += F("<input type=checkbox name='userules' checked>");
   else
     reply += F("<input type=checkbox name='userules'>");
+
+  reply += F("<TR><TH>Experimental Settings<TH>Value");
+
+  reply += F("<TR><TD>I2C ClockStretchLimit:<TD><input type='text' name='wireclockstretchlimit' value='");
+  reply += Settings.WireClockStretchLimit;
+  reply += F("'>");
 
   reply += F("<TR><TD>Global Sync:<TD>");
   if (Settings.GlobalSync)
@@ -1909,25 +1956,8 @@ byte uploadResult = 0;
 void handle_upload() {
   if (!isLoggedIn()) return;
 
-  String edit = WebServer.arg("edit");
-
   String reply = "";
   addHeader(true, reply);
-
-  if (edit.length() != 0)
-  {
-    if (uploadResult == 1)
-    {
-      reply += F("Upload OK!<BR>You may need to reboot to apply all settings...");
-      LoadSettings();
-    }
-
-    if (uploadResult == 2)
-      reply += F("<font color=\"red\">Upload file invalid!</font>");
-
-    if (uploadResult == 3)
-      reply += F("<font color=\"red\">No filename!</font>");
-  }
 
   reply += F("<form enctype=\"multipart/form-data\" method=\"post\"><p>Upload settings file:<br><input type=\"file\" name=\"datafile\" size=\"40\"></p><div><input class=\"button-link\" type='submit' value='Upload'></div><input type='hidden' name='edit' value='1'></form>");
   addFooter(reply);
@@ -1935,6 +1965,36 @@ void handle_upload() {
   printWebString = "";
   printToWeb = false;
 }
+
+
+//********************************************************************************
+// Web Interface upload page
+//********************************************************************************
+void handle_upload_post() {
+  if (!isLoggedIn()) return;
+
+  String reply = "";
+
+  if (uploadResult == 1)
+  {
+    reply += F("Upload OK!<BR>You may need to reboot to apply all settings...");
+    LoadSettings();
+  }
+
+  if (uploadResult == 2)
+    reply += F("<font color=\"red\">Upload file invalid!</font>");
+
+  if (uploadResult == 3)
+    reply += F("<font color=\"red\">No filename!</font>");
+
+  addHeader(true, reply);
+  reply += F("Upload finished");
+  addFooter(reply);
+  WebServer.send(200, "text/html", reply);
+  printWebString = "";
+  printToWeb = false;
+}
+
 
 //********************************************************************************
 // Web Interface upload handler
@@ -2064,7 +2124,7 @@ void handle_filelist() {
   addHeader(true, reply);
   reply += F("<table border='1'><TH><TH>Filename:<TH>Size");
 
-  Dir dir = SPIFFS.openDir("/");
+  Dir dir = SPIFFS.openDir("");
   while (dir.next())
   {
     reply += F("<TR><TD>");
@@ -2273,6 +2333,7 @@ void handleFileUpload()
         }
       interrupts();
       delay(10);
+      flashWrites++;
     }
     page++;
   }
@@ -2466,6 +2527,19 @@ void handle_rules() {
   {
     String rules = WebServer.arg("rules");
     rules.toCharArray((char*)data, 4096);
+#if FEATURE_SPIFFS
+    File f = SPIFFS.open("rules.txt", "w");
+    if (f)
+    {
+      byte *pointerToByteToSave = data;
+      for (int x = 0; x < rules.length(); x++)
+      {
+        f.write(*pointerToByteToSave);
+        pointerToByteToSave++;
+      }
+      f.close();
+    }
+#else
     uint32_t _sector = ((uint32_t)&_SPIFFS_start - 0x40200000) / SPI_FLASH_SEC_SIZE;
     _sector += 10;
     noInterrupts();
@@ -2475,18 +2549,35 @@ void handle_rules() {
         //Serial.println("flash save ok");
       }
     interrupts();
+    flashWrites++;
+#endif
   }
 
   // load form data from flash
   reply += F("<form method='post'>");
-  reply += F("<textarea name='rules' rows='15' cols='80' wrap='on'>");
+  reply += F("<textarea name='rules' rows='15' cols='80' wrap='off'>");
+
+#if FEATURE_SPIFFS
+  File f = SPIFFS.open("rules.txt", "r+");
+  if (f)
+  {
+    byte *pointerToByteToRead = data;
+    for (int x = 0; x < f.size(); x++)
+    {
+      *pointerToByteToRead = f.read();
+      pointerToByteToRead++;// next byte
+    }
+    data[f.size()]=0;
+    f.close();
+  }
+#else
   uint32_t _sector = ((uint32_t)&_SPIFFS_start - 0x40200000) / SPI_FLASH_SEC_SIZE;
   _sector += 10;
-
   // load entire sector from flash into memory
   noInterrupts();
   spi_flash_read(_sector * SPI_FLASH_SEC_SIZE, reinterpret_cast<uint32_t*>(data), FLASH_EEPROM_SIZE);
   interrupts();
+#endif
 
   // check size of css file content
   int x = 0;

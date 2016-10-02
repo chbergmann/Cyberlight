@@ -9,6 +9,7 @@
 
 #define BUFFER_SIZE 128
 boolean Plugin_020_init = false;
+byte Plugin_020_SerialProcessing = 0;
 
 WiFiServer *ser2netServer;
 WiFiClient ser2netClient;
@@ -16,6 +17,7 @@ WiFiClient ser2netClient;
 boolean Plugin_020(byte function, struct EventStruct *event, String& string)
 {
   boolean success = false;
+  static byte connectionState = 0;
 
   switch (function)
   {
@@ -80,6 +82,32 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
         string += F("<TR><TD>Reset target after boot:<TD>");
         addPinSelect(false, string, "taskdevicepin1", Settings.TaskDevicePin1[event->TaskIndex]);
 
+        sprintf_P(tmpString, PSTR("<TR><TD>RX Receive Timeout (mSec):<TD><input type='text' name='plugin_020_rxwait' value='%u'>"), Settings.TaskDevicePluginConfig[event->TaskIndex][0]);
+        string += tmpString;
+
+        byte choice2 = Settings.TaskDevicePluginConfig[event->TaskIndex][1];
+        String options2[3];
+        options2[0] = F("None");
+        options2[1] = F("Generic");
+        options2[2] = F("RFLink");
+        int optionValues2[3];
+        optionValues2[0] = 0;
+        optionValues2[1] = 1;
+        optionValues2[2] = 2;
+        string += F("<TR><TD>Event processing:<TD><select name='plugin_020_events'>");
+        for (byte x = 0; x < 3; x++)
+      {
+        string += F("<option value='");
+          string += optionValues2[x];
+          string += "'";
+          if (choice2 == optionValues2[x])
+            string += F(" selected");
+          string += ">";
+          string += options2[x];
+          string += F("</option>");
+        }
+        string += F("</select>");
+
         success = true;
         break;
       }
@@ -96,6 +124,10 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
         ExtraTaskSettings.TaskDevicePluginConfigLong[3] = plugin4.toInt();
         String plugin5 = WebServer.arg("plugin_020_stop");
         ExtraTaskSettings.TaskDevicePluginConfigLong[4] = plugin5.toInt();
+        String plugin6 = WebServer.arg("plugin_020_rxwait");
+        Settings.TaskDevicePluginConfig[event->TaskIndex][0] = plugin6.toInt();
+        String plugin7 = WebServer.arg("plugin_020_events");
+        Settings.TaskDevicePluginConfig[event->TaskIndex][1] = plugin7.toInt();
         success = true;
         break;
       }
@@ -110,11 +142,7 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
           serialconfig += (ExtraTaskSettings.TaskDevicePluginConfigLong[2] - 5) << 2;
           if (ExtraTaskSettings.TaskDevicePluginConfigLong[4] == 2)
             serialconfig += 0x20;
-          #if ESP_CORE >= 210
-            Serial.begin(ExtraTaskSettings.TaskDevicePluginConfigLong[1], (SerialConfig)serialconfig);
-          #else
-            Serial.begin(ExtraTaskSettings.TaskDevicePluginConfigLong[1], serialconfig);
-          #endif
+          Serial.begin(ExtraTaskSettings.TaskDevicePluginConfigLong[1], (SerialConfig)serialconfig);
           ser2netServer = new WiFiServer(ExtraTaskSettings.TaskDevicePluginConfigLong[0]);
           ser2netServer->begin();
 
@@ -126,9 +154,10 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
             digitalWrite(Settings.TaskDevicePin1[event->TaskIndex], HIGH);
             pinMode(Settings.TaskDevicePin1[event->TaskIndex], INPUT_PULLUP);
           }
-          
+
           Plugin_020_init = true;
         }
+        Plugin_020_SerialProcessing = Settings.TaskDevicePluginConfig[event->TaskIndex][1];
         success = true;
         break;
       }
@@ -138,30 +167,55 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
         if (Plugin_020_init)
         {
           size_t bytes_read;
-          if (!ser2netClient)
+          if (ser2netServer->hasClient())
           {
-            while (Serial.available()) {
-              Serial.read();
-            }
+            if (ser2netClient) ser2netClient.stop();
             ser2netClient = ser2netServer->available();
+            char log[40];
+            strcpy_P(log, PSTR("Ser2N: Client connected!"));
+            addLog(LOG_LEVEL_ERROR, log);
           }
 
           if (ser2netClient.connected())
           {
+            connectionState = 1;
             uint8_t net_buf[BUFFER_SIZE];
             int count = ser2netClient.available();
-            if (count > 0) {
+            if (count > 0)
+            {
               if (count > BUFFER_SIZE)
                 count = BUFFER_SIZE;
               bytes_read = ser2netClient.read(net_buf, count);
               Serial.write(net_buf, bytes_read);
-              Serial.flush();
+              Serial.flush(); // Waits for the transmission of outgoing serial data to complete
 
-              net_buf[count]=0;
-              addLog(LOG_LEVEL_DEBUG,(char*)net_buf);
-
+              if (count == BUFFER_SIZE) // if we have a full buffer, drop the last position to stuff with string end marker
+              {
+                count--;
+                char log[40];
+                strcpy_P(log, PSTR("Ser2N: network buffer full!"));   // and log buffer full situation
+                addLog(LOG_LEVEL_ERROR, log);
+              }
+              net_buf[count] = 0; // before logging as a char array, zero terminate the last position to be safe.
+              char log[BUFFER_SIZE + 40];
+              sprintf_P(log, PSTR("Ser2N: N>: %s"), (char*)net_buf);
+              addLog(LOG_LEVEL_DEBUG, log);
             }
           }
+          else
+          {
+            if (connectionState == 1) // there was a client connected before...
+            {
+              connectionState = 0;
+              char log[40];
+              strcpy_P(log, PSTR("Ser2N: Client disconnected!"));
+              addLog(LOG_LEVEL_ERROR, log);
+            }
+
+            while (Serial.available())
+              Serial.read();
+          }
+
           success = true;
         }
         break;
@@ -169,26 +223,107 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
 
     case PLUGIN_SERIAL_IN:
       {
-        if (Plugin_020_init)
+        uint8_t serial_buf[BUFFER_SIZE];
+        int RXWait = Settings.TaskDevicePluginConfig[event->TaskIndex][0];
+        if (RXWait == 0)
+          RXWait = 1;
+        int timeOut = RXWait;
+        size_t bytes_read = 0;
+        while (timeOut > 0)
         {
-          if (ser2netClient.connected())
-          {
-            uint8_t serial_buf[BUFFER_SIZE];
-            size_t bytes_read = 0;
-            while (Serial.available() && bytes_read < BUFFER_SIZE) {
+          while (Serial.available()) {
+            if (bytes_read < BUFFER_SIZE) {
               serial_buf[bytes_read] = Serial.read();
               bytes_read++;
             }
-            if (bytes_read > 0) {
+            else
+              Serial.read();  // when the buffer is full, just read remaining input, but do not store...
+
+            timeOut = RXWait; // if serial received, reset timeout counter
+          }
+          delay(1);
+          timeOut--;
+        }
+
+        if (bytes_read != BUFFER_SIZE)
+        {
+          if (bytes_read > 0) {
+            if (Plugin_020_init && ser2netClient.connected())
+            {
               ser2netClient.write((const uint8_t*)serial_buf, bytes_read);
               ser2netClient.flush();
             }
-
-            serial_buf[bytes_read]=0;
-            addLog(LOG_LEVEL_DEBUG,(char*)serial_buf);
-
           }
+        }
+        else // if we have a full buffer, drop the last position to stuff with string end marker
+        {
+          while (Serial.available()) // read possible remaining data to avoid sending rubbish...
+            Serial.read();
+          bytes_read--;
+          char log[40];
+          strcpy_P(log, PSTR("Ser2N: serial buffer full!"));   // and log buffer full situation
+          addLog(LOG_LEVEL_ERROR, log);
+        }
+        serial_buf[bytes_read] = 0; // before logging as a char array, zero terminate the last position to be safe.
+        char log[BUFFER_SIZE + 40];
+        sprintf_P(log, PSTR("Ser2N: S>: %s"), (char*)serial_buf);
+        addLog(LOG_LEVEL_DEBUG, log);
+
+        // We can also use the rules engine for local control!
+        if (Settings.UseRules)
+        {
+          String message = (char*)serial_buf;
+          int NewLinePos = message.indexOf("\r\n");
+          if (NewLinePos > 0)
+            message = message.substring(0, NewLinePos);
+          String eventString = "";
+
+          switch (Plugin_020_SerialProcessing)
+          {
+            case 0:
+              {
+                break;
+              }
+
+            case 1: // Generic
+              {
+                eventString = F("!Serial#");
+                eventString += message;
+                break;
+              }
+
+            case 2: // RFLink
+              {
+                message = message.substring(6); // RFLink, strip 20;xx; from incoming message
+                //message.replace("\r\n", "");
+                if (message.startsWith("ESPEASY")) // Special treatment for gpio values, strip unneeded parts...
+                {
+                  message = message.substring(8); // Strip "ESPEASY;"
+                  eventString = F("RFLink#");
+                }
+                else
+                  eventString = F("!RFLink#"); // default event as it comes in, literal match needed in rules, using '!'
+                eventString += message;
+                break;
+              }
+          } // switch
+
+          if (eventString.length() > 0)
+            rulesProcessing(eventString);
+
+        } // if rules
+        success = true;
+        break;
+      }
+
+    case PLUGIN_WRITE:
+      {
+        String command = parseString(string, 1);
+        if (command == F("serialsend"))
+        {
           success = true;
+          String tmpString = string.substring(11);
+          Serial.println(tmpString);
         }
         break;
       }

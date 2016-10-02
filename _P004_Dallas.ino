@@ -196,14 +196,14 @@ boolean Plugin_004_DS_readTemp(uint8_t ROM[8], float *value)
     return false;
   }
 
-  if (ROM[0] == 0x28 ) //DS18B20
+  if ((ROM[0] == 0x28 ) || (ROM[0] == 0x3b)) //DS18B20 or DS1825
   {
     DSTemp = (ScratchPad[1] << 8) + ScratchPad[0];
     *value = (float(DSTemp) * 0.0625);
   }
   else if (ROM[0] == 0x10 ) //DS1820 DS18S20
   {
-    DSTemp = (ScratchPad[1] << 11) + ScratchPad[0] << 3;
+    DSTemp = (ScratchPad[1] << 11) | ScratchPad[0] << 3;
     DSTemp = ((DSTemp & 0xfff0) << 3) - 16 +
              (
                ((ScratchPad[7] - ScratchPad[6]) << 7) /

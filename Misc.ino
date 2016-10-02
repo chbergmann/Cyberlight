@@ -1,6 +1,41 @@
 /*********************************************************************************************\
+   Get value count from sensor type
+  \*********************************************************************************************/
+
+byte getValueCountFromSensorType(byte sensorType)
+{
+  byte valueCount = 0;
+
+  switch (sensorType)
+  {
+    case SENSOR_TYPE_SINGLE:                      // single value sensor, used for Dallas, BH1750, etc
+    case SENSOR_TYPE_SWITCH:
+    case SENSOR_TYPE_DIMMER:
+      valueCount = 1;
+      break;
+    case SENSOR_TYPE_LONG:                      // single LONG value, stored in two floats (rfid tags)
+      valueCount = 1;
+      break;
+    case SENSOR_TYPE_TEMP_HUM:
+    case SENSOR_TYPE_TEMP_BARO:
+    case SENSOR_TYPE_DUAL:
+      valueCount = 2;
+      break;
+    case SENSOR_TYPE_TEMP_HUM_BARO:
+    case SENSOR_TYPE_TRIPLE:
+      valueCount = 3;
+      break;
+    case SENSOR_TYPE_QUAD:
+      valueCount = 4;
+      break;
+  }
+  return valueCount;
+}
+
+
+/*********************************************************************************************\
    Workaround for removing trailing white space when String() converts a float with 0 decimals
-\*********************************************************************************************/
+  \*********************************************************************************************/
 String toString(float value, byte decimals)
 {
   String sValue = String(value, decimals);
@@ -43,14 +78,14 @@ int getParamStartPos(String& string, byte indexFind)
   String tmpString = string;
   byte count = 0;
   tmpString.replace(" ", ",");
-  for (int x=0; x < tmpString.length(); x++)
+  for (int x = 0; x < tmpString.length(); x++)
   {
-    if(tmpString.charAt(x) == ',')
-      {
-        count++;
-        if (count == (indexFind -1))
-         return x+1;
-      }
+    if (tmpString.charAt(x) == ',')
+    {
+      count++;
+      if (count == (indexFind - 1))
+        return x + 1;
+    }
   }
   return -1;
 }
@@ -392,6 +427,12 @@ void BuildFixes()
     }
   }
 
+  if (Settings.Build < 112)
+  {
+    Serial.println(F("Fix timezone"));
+    Settings.TimeZone = Settings.TimeZone_OLD * 60;
+  }
+
   Settings.Build = BUILD;
   SaveSettings();
 }
@@ -425,6 +466,8 @@ void fileSystemCheck()
           f.write(0);
         f.close();
       }
+      f = SPIFFS.open("rules.txt", "w");
+      f.close();
     }
   }
   else
@@ -660,6 +703,36 @@ void LoadCustomTaskSettings(int TaskIndex, byte* memAddress, int datasize)
 }
 
 
+/********************************************************************************************\
+  Save Custom Controller settings to SPIFFS
+  \*********************************************************************************************/
+void SaveCustomControllerSettings(byte* memAddress, int datasize)
+{
+  if (datasize > 4096)
+    return;
+#if FEATURE_SPIFFS
+  SaveToFile((char*)"config.txt", 28672, memAddress, datasize);
+#else
+  SaveToFlash(28672, memAddress, datasize);
+#endif
+}
+
+
+/********************************************************************************************\
+  Save Custom Controller settings to SPIFFS
+  \*********************************************************************************************/
+void LoadCustomControllerSettings(byte* memAddress, int datasize)
+{
+  if (datasize > 4096)
+    return;
+#if FEATURE_SPIFFS
+  LoadFromFile((char*)"config.txt", 28672, memAddress, datasize);
+#else
+  LoadFromFlash(28672, memAddress, datasize);
+#endif
+}
+
+
 #if FEATURE_SPIFFS
 /********************************************************************************************\
   Save data into config file on SPIFFS
@@ -739,6 +812,7 @@ void SaveToFlash(int index, byte* memAddress, int datasize)
   delete [] data;
   String log = F("FLASH: Settings saved");
   addLog(LOG_LEVEL_INFO, log);
+  flashWrites++;
 }
 
 
@@ -875,6 +949,8 @@ void ResetFactory(void)
       f.write(0);
     f.close();
   }
+  f = SPIFFS.open("rules.txt", "w");
+  f.close();
 #else
   EraseFlash();
   ZeroFillFlash();
@@ -1076,7 +1152,7 @@ unsigned long string2TimeLong(String &str)
   unsigned long a;
   str.toLowerCase();
   str.toCharArray(command, 20);
-  unsigned long lngTime;
+  unsigned long lngTime = 0;
 
   if (GetArgv(command, TmpStr1, 1))
   {
@@ -1180,6 +1256,7 @@ String parseTemplate(String &tmpString, byte lineSize)
   else
   {
     byte count = 0;
+    byte currentTaskIndex = ExtraTaskSettings.TaskIndex;
     while (leftBracketIndex >= 0 && count < 10 - 1)
     {
       newString += tmpString.substring(0, leftBracketIndex);
@@ -1210,7 +1287,13 @@ String parseTemplate(String &tmpString, byte lineSize)
                 if (valueName.equalsIgnoreCase(ExtraTaskSettings.TaskDeviceValueNames[z]))
                 {
                   // here we know the task and value, so find the uservar
-                  String value = toString(UserVar[y * VARS_PER_TASK + z], ExtraTaskSettings.TaskDeviceValueDecimals[z]);
+
+                  String value = "";
+                  byte DeviceIndex = getDeviceIndex(Settings.TaskDeviceNumber[y]);
+                  if (Device[DeviceIndex].VType == SENSOR_TYPE_LONG)
+                    value = (unsigned long)UserVar[y * VARS_PER_TASK + z] + ((unsigned long)UserVar[y * VARS_PER_TASK + z + 1] << 16);
+                  else
+                    value = toString(UserVar[y * VARS_PER_TASK + z], ExtraTaskSettings.TaskDeviceValueDecimals[z]);
 
                   if (valueFormat == "R")
                   {
@@ -1230,6 +1313,7 @@ String parseTemplate(String &tmpString, byte lineSize)
       count++;
     }
     newString += tmpString;
+    LoadTaskSettings(currentTaskIndex);
   }
 
   // replace other system variables like %sysname%, %systime%, %ip%
@@ -1653,6 +1737,7 @@ int weekday()
 
 void initTime()
 {
+  nextSyncTime = 0;
   now();
 }
 
@@ -1734,7 +1819,7 @@ unsigned long getNtpTime()
       secsSince1900 |= (unsigned long)packetBuffer[43];
       log = F("NTP  : NTP replied!");
       addLog(LOG_LEVEL_DEBUG_MORE, log);
-      return secsSince1900 - 2208988800UL + Settings.TimeZone * SECS_PER_HOUR;
+      return secsSince1900 - 2208988800UL + Settings.TimeZone * SECS_PER_MIN;
     }
   }
   log = F("NTP  : No reply");
@@ -1745,7 +1830,7 @@ unsigned long getNtpTime()
 
 
 /********************************************************************************************\
-  Very Experimental rules processing
+  Rules processing
   \*********************************************************************************************/
 void rulesProcessing(String& event)
 {
@@ -1756,12 +1841,12 @@ void rulesProcessing(String& event)
 
   nestingLevel++;
   if (nestingLevel > RULES_MAX_NESTING_LEVEL)
-    {
-      log = F("EVENT: Error: Nesting level exceeded!");
-      addLog(LOG_LEVEL_ERROR, log);
-      nestingLevel--;
-      return;
-    }
+  {
+    log = F("EVENT: Error: Nesting level exceeded!");
+    addLog(LOG_LEVEL_ERROR, log);
+    nestingLevel--;
+    return;
+  }
 
   log = F("EVENT: ");
   log += event;
@@ -1769,15 +1854,30 @@ void rulesProcessing(String& event)
 
   // load rules from flash memory, stored in offset block 10
   if (data == NULL)
+  {
+    data = new uint8_t[RULES_MAX_SIZE];
+#if FEATURE_SPIFFS
+    File f = SPIFFS.open("rules.txt", "r+");
+    if (f)
     {
-      data = new uint8_t[RULES_MAX_SIZE];
-      uint32_t _sector = ((uint32_t)&_SPIFFS_start - 0x40200000) / SPI_FLASH_SEC_SIZE;
-      _sector += 10;
-      noInterrupts();
-      spi_flash_read(_sector * SPI_FLASH_SEC_SIZE, reinterpret_cast<uint32_t*>(data), RULES_MAX_SIZE);
-      interrupts();
-      data[RULES_MAX_SIZE-1]=0; // make sure it's terminated!
+      byte *pointerToByteToRead = data;
+      for (int x = 0; x < f.size(); x++)
+      {
+        *pointerToByteToRead = f.read();
+        pointerToByteToRead++;// next byte
+      }
+      data[f.size()] = 0;
+      f.close();
     }
+#else
+    uint32_t _sector = ((uint32_t)&_SPIFFS_start - 0x40200000) / SPI_FLASH_SEC_SIZE;
+    _sector += 10;
+    noInterrupts();
+    spi_flash_read(_sector * SPI_FLASH_SEC_SIZE, reinterpret_cast<uint32_t*>(data), RULES_MAX_SIZE);
+    interrupts();
+#endif
+    data[RULES_MAX_SIZE - 1] = 0; // make sure it's terminated!
+  }
 
   int pos = 0;
   String line = "";
@@ -1898,7 +1998,7 @@ void rulesProcessing(String& event)
   }
 
   nestingLevel--;
-  if(nestingLevel == 0)
+  if (nestingLevel == 0)
   {
     delete [] data;
     data = NULL;
@@ -1915,14 +2015,23 @@ boolean ruleMatch(String& event, String& rule)
   String tmpEvent = event;
   String tmpRule = rule;
 
+  // Special handling of literal string events, they should start with '!'
+  if (event.charAt(0) == '!')
+  {
+    if (event.equalsIgnoreCase(rule))
+        return true;
+    else
+        return false;
+  }
+
   if (event.startsWith("Clock#Time")) // clock events need different handling...
   {
     int pos1 = event.indexOf("=");
     int pos2 = rule.indexOf("=");
     if (pos1 > 0 && pos2 > 0)
     {
-      tmpEvent = event.substring(0,pos1);
-      tmpRule  = rule.substring(0,pos2);
+      tmpEvent = event.substring(0, pos1);
+      tmpRule  = rule.substring(0, pos2);
       if (tmpRule.equalsIgnoreCase(tmpEvent)) // if this is a clock rule
       {
         tmpEvent = event.substring(pos1 + 1);
@@ -1931,14 +2040,14 @@ boolean ruleMatch(String& event, String& rule)
         unsigned long clockSet = string2TimeLong(tmpRule);
         unsigned long Mask;
         for (byte y = 0; y < 8; y++)
-          {
+        {
           if (((clockSet >> (y * 4)) & 0xf) == 0xf)  // if nibble y has the wildcard value 0xf
-            {
-              Mask = 0xffffffff  ^ (0xFUL << (y * 4)); // Mask to wipe nibble position y.
-              clockEvent &= Mask;                      // clear nibble
-              clockEvent |= (0xFUL << (y * 4));        // fill with wildcard value 0xf
-            }
+          {
+            Mask = 0xffffffff  ^ (0xFUL << (y * 4)); // Mask to wipe nibble position y.
+            clockEvent &= Mask;                      // clear nibble
+            clockEvent |= (0xFUL << (y * 4));        // fill with wildcard value 0xf
           }
+        }
         if (clockEvent == clockSet)
           return true;
         else
