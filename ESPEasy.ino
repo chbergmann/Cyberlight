@@ -166,6 +166,7 @@
 #define DEVICE_TYPE_ANALOG                  3  // tout pin
 #define DEVICE_TYPE_DUAL                    4  // connected through 2 datapins
 
+#define SENSOR_TYPE_OTHER                   0
 #define SENSOR_TYPE_SINGLE                  1
 #define SENSOR_TYPE_TEMP_HUM                2
 #define SENSOR_TYPE_TEMP_BARO               3
@@ -425,6 +426,7 @@ int protocolCount = -1;
 boolean printToWeb = false;
 String printWebString = "";
 boolean printToWebJSON = false;
+String urlParameters = "";
 
 float UserVar[VARS_PER_TASK * TASKS_MAX];
 unsigned long RulesTimer[RULES_TIMER_MAX];

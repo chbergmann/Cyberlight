@@ -32,7 +32,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
         string = F(CPLUGIN_NAME_001);
         break;
       }
-      
+
     case CPLUGIN_PROTOCOL_SEND:
       {
         String authHeader = "";
@@ -46,7 +46,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
           authHeader = "Authorization: Basic " + encoder.encode(auth) + " \r\n";
         }
         #endif
-        
+
         char log[80];
         boolean success = false;
         char host[20];
@@ -126,6 +126,9 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
               url += UserVar[event->BaseVarIndex];
             }
             break;
+          default:
+              url = urlParameters;
+              break;
         }
 
         url.toCharArray(log, 80);
@@ -133,7 +136,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
 
         // This will send the request to the server
         client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-                     "Host: " + host + "\r\n" + authHeader + 
+                     "Host: " + host + "\r\n" + authHeader +
                      "Connection: close\r\n\r\n");
 
         unsigned long timer = millis() + 200;
@@ -212,5 +215,3 @@ boolean Domoticz_getData(int idx, float *data)
   }
   return success;
 }
-
-
