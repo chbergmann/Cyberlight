@@ -14,7 +14,7 @@ int Plugin_105_FadingRate = 50; //   was 10hz
 unsigned int Plugin_105_UDPCmd = 0;
 unsigned int Plugin_105_UDPParameter = 0;
 Ticker Plugin_105_Ticker;
-int saveTimeCount = 0;
+int secondCount = 0;
 
 struct Plugin_105_structPins
 {
@@ -81,16 +81,23 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 		char tmpString[128];
 		sprintf_P(tmpString, PSTR("<TR><TD>Milight UDP Port:<TD><input type='text' name='plugin_105_port' value='%u'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[0]);
 		string += tmpString;
-		sprintf_P(tmpString, PSTR("<TR><TD>Red Pin:<TD><input type='text' name='plugin_105_RedPin' value='%u'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[1]);
+		sprintf_P(tmpString, PSTR("<TR><TD>Red Pin:<TD><input type='text' name='plugin_105_RedPin' value='%u'>"), Settings.plugin105_pinNo[0]);
 		string += tmpString;
-		sprintf_P(tmpString, PSTR("<TR><TD>Green Pin:<TD><input type='text' name='plugin_105_GreenPin' value='%u'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[2]);
+		sprintf_P(tmpString, PSTR("<TR><TD>Green Pin:<TD><input type='text' name='plugin_105_GreenPin' value='%u'>"), Settings.plugin105_pinNo[1]);
 		string += tmpString;
-		sprintf_P(tmpString, PSTR("<TR><TD>Blue Pin:<TD><input type='text' name='plugin_105_BluePin' value='%u'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[3]);
+		sprintf_P(tmpString, PSTR("<TR><TD>Blue Pin:<TD><input type='text' name='plugin_105_BluePin' value='%u'>"), Settings.plugin105_pinNo[2]);
 		string += tmpString;
-		sprintf_P(tmpString, PSTR("<TR><TD>White Pin:<TD><input type='text' name='plugin_105_WhitePin' value='%u'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[4]);
+		sprintf_P(tmpString, PSTR("<TR><TD>White Pin:<TD><input type='text' name='plugin_105_WhitePin' value='%u'>"), Settings.plugin105_pinNo[3]);
     string += tmpString;
-    sprintf_P(tmpString, PSTR("<TR><TD>Hue Offset:<TD><input type='text' name='plugin_105_HueOffset' value='%d'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[5]);
+    sprintf_P(tmpString, PSTR("<TR><TD>Hue Offset:<TD><input type='text' name='plugin_105_HueOffset' value='%d'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[1]);
 		string += tmpString;
+    string += "<TR><TD>Set color by time<TD><input type='checkbox' name='plugin_106_timehue'";
+    if(Settings.plugin105_setColorByTime)
+      string += " checked";
+    string += ">";
+    sprintf_P(tmpString, PSTR("<TR><TD>Hue offset at midnight:<TD><input type='text' name='plugin_106_hueoffset' value='%u'>"),
+      Settings.plugin105_hueOffsetMidnight);
+    string += tmpString;
 		success = true;
 		break;
 	}
@@ -100,16 +107,27 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 		String plugin1 = WebServer.arg("plugin_105_port");
 		ExtraTaskSettings.TaskDevicePluginConfigLong[0] = plugin1.toInt();
 		String plugin2 = WebServer.arg("plugin_105_RedPin");
-		ExtraTaskSettings.TaskDevicePluginConfigLong[1] = plugin2.toInt();
+		Settings.plugin105_pinNo[0] = plugin2.toInt();
 		String plugin3 = WebServer.arg("plugin_105_GreenPin");
-		ExtraTaskSettings.TaskDevicePluginConfigLong[2] = plugin3.toInt();
+		Settings.plugin105_pinNo[1] = plugin3.toInt();
 		String plugin4 = WebServer.arg("plugin_105_BluePin");
-		ExtraTaskSettings.TaskDevicePluginConfigLong[3] = plugin4.toInt();
+		Settings.plugin105_pinNo[2] = plugin4.toInt();
 		String plugin5 = WebServer.arg("plugin_105_WhitePin");
-		ExtraTaskSettings.TaskDevicePluginConfigLong[4] = plugin5.toInt();
+		Settings.plugin105_pinNo[3] = plugin5.toInt();
     String plugin6 = WebServer.arg("plugin_105_HueOffset");
-    ExtraTaskSettings.TaskDevicePluginConfigLong[5] = plugin6.toInt();
+    ExtraTaskSettings.TaskDevicePluginConfigLong[1] = plugin6.toInt();
+		String plugin8 = WebServer.arg("plugin_106_timehue");
+		if(plugin8 == "on")
+			Settings.plugin105_setColorByTime = 1;
+		else
+			Settings.plugin105_setColorByTime = 0;
+
+		String plugin9 = WebServer.arg("plugin_106_hueoffset");
+		Settings.plugin105_hueOffsetMidnight = plugin9.toInt();
+
+		Plugin_105_pinsetup();
 		SaveTaskSettings(event->TaskIndex);
+		SaveSettings();
 		success = true;
 		break;
 	}
@@ -120,6 +138,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 
 		//udp port
 		Plugin_105_MiLight.UDPPort = ExtraTaskSettings.TaskDevicePluginConfigLong[0];
+		Plugin_105_MiLight.HueOffset = ExtraTaskSettings.TaskDevicePluginConfigLong[1];
 		if (Plugin_105_MiLight.UDPPort != 0)
 		{
 			if (Plugin_105_milightUDP.begin(Plugin_105_MiLight.UDPPort)) addLog(LOG_LEVEL_INFO, "INIT: Milight UDP");
@@ -127,25 +146,15 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 
 		//rgbw gpio pins
 		boolean SetupTimer = false;
+
+		Plugin_105_pinsetup();
 		for (int PinIndex = 0; PinIndex < 4; PinIndex++)
 		{
-			Plugin_105_Pins[PinIndex].PinNo = ExtraTaskSettings.TaskDevicePluginConfigLong[PinIndex + 1];
 			if (Plugin_105_Pins[PinIndex].PinNo != 0)
 			{
-				byte mode;
-				uint16_t value;
-				getPinState(PLUGIN_ID_105, Plugin_105_Pins[PinIndex].PinNo, &mode, &value);
-        if(mode == PIN_MODE_OUTPUT)
-          digitalWrite(Plugin_105_Pins[PinIndex].PinNo, value);
-        else if(mode == PIN_MODE_PWM)
-          analogWrite(Plugin_105_Pins[PinIndex].PinNo, value);
-
-				Plugin_105_Pins[PinIndex].CurrentLevel = value;
 				SetupTimer = true;
 			}
 		}
-
-   Plugin_105_MiLight.HueOffset = ExtraTaskSettings.TaskDevicePluginConfigLong[5];
 
 		if (SetupTimer == true)
 		{
@@ -231,27 +240,21 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 	case PLUGIN_ONCE_A_SECOND:
 	{
 		int i;
-		bool save = false;
 
-		saveTimeCount++;
-
-		if(saveTimeCount > 5)
+		secondCount++;
+		if(secondCount >= 60)
 		{
-			saveTimeCount = 0;
-			for(i=0; i<4; i++)
-			{
-				byte mode;
-				uint16_t value;
-				getPinState(PLUGIN_ID_105, Plugin_105_Pins[i].PinNo, &mode, &value);
-				if(Plugin_105_Pins[i].CurrentLevel != value)
-				{
-					setPinState(PLUGIN_ID_105, Plugin_105_Pins[i].PinNo, PIN_MODE_PWM, Plugin_105_Pins[i].CurrentLevel);
-					save = true;
-				}
-			}
-			if(save)
-				SavePinStates();
+			secondCount = 0;
+			Plugin_105_SetColors();
+			Plugin_105_CheckPinChange();
 		}
+
+		if(secondCount % 5 == 0)
+		{
+			if(Plugin_105_CheckPinChange())
+				SaveSettings();
+		}
+		break;
 	}
 
 	case PLUGIN_WRITE:
@@ -352,6 +355,21 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 	}
 
 	return success;
+	}
+
+
+	void Plugin_105_pinsetup()
+	{
+	  int i;
+	  for(i=0; i < 4; i++)
+	  {
+			Plugin_105_Pins[i].PinNo = Settings.plugin105_pinNo[i];
+			Plugin_105_Pins[i].CurrentLevel = Settings.plugin105_pinValue[i];
+			Settings.PinBootStates[Settings.plugin105_pinNo[i]] = 0;
+			setPinState(105, i, PIN_MODE_PWM, Plugin_105_Pins[i].CurrentLevel);
+			pinMode(Plugin_105_Pins[i].PinNo, OUTPUT);
+		}
+		Plugin_105_SetColors();
 	}
 
 	/************************/
@@ -579,3 +597,47 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 		if (Plugin_105_Pins[1].CurrentLevel > 1023)  Plugin_105_Pins[1].CurrentLevel = 1023;
 		if (Plugin_105_Pins[2].CurrentLevel > 1023)  Plugin_105_Pins[2].CurrentLevel = 1023;
 	}
+
+bool Plugin_105_CheckPinChange()
+{
+	bool changed = false;
+	int i;
+
+	for(i=0; i<4; i++)
+	{
+		if(Plugin_105_Pins[i].CurrentLevel != Settings.plugin105_pinValue[i])
+		{
+			setPinState(PLUGIN_ID_105, Plugin_105_Pins[i].PinNo, PIN_MODE_PWM, Plugin_105_Pins[i].CurrentLevel);
+			Settings.plugin105_pinValue[i] = Plugin_105_Pins[i].CurrentLevel;
+			changed = true;
+		}
+	}
+	return changed;
+}
+
+void Plugin_105_SetColors()
+{
+	if(Settings.plugin105_setColorByTime)
+	{
+		uint8_t timerval[8];
+		Plugin_106_ReadTime(timerval);
+		int minSinceMN = timerval[3] * 60 + timerval[2];
+		int hue = ((minSinceMN * 360 / 1440) + Settings.plugin105_hueOffsetMidnight) % 360;
+		Plugin_105_MiLight.HueLevel = 1 - (float)hue / 360;
+		Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
+
+		String logstr = "HUE=";
+		logstr += Plugin_105_MiLight.HueLevel;
+		addLog(LOG_LEVEL_INFO, logstr);
+	}
+
+ 	int i;
+ 	for(i=0; i<4; i++)
+	{
+  	analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+
+		char tmp[100];
+		sprintf_P(tmp, "Pin %d = %d\n", Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+		addLog(LOG_LEVEL_INFO, tmp);
+	}
+}

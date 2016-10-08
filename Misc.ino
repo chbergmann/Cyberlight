@@ -610,15 +610,6 @@ void SaveSettings(void)
 #endif
 }
 
-void SavePinStates(void)
-{
-#if FEATURE_SPIFFS
-  SaveToFile((char*)"pinstates.txt", 0, (byte*)&pinStates, sizeof(pinStates));
-#else
-  SaveToFlash(sizeof(struct SettingsStruct), (byte*)&pinStates, sizeof(pinStates));
-#endif
-}
-
 /********************************************************************************************\
   Load settings from SPIFFS
   \*********************************************************************************************/
@@ -630,15 +621,6 @@ boolean LoadSettings()
 #else
   LoadFromFlash(0, (byte*)&Settings, sizeof(struct SettingsStruct));
   LoadFromFlash(32768, (byte*)&SecuritySettings, sizeof(struct SecurityStruct));
-#endif
-}
-
-void LoadPinStates(void)
-{
-#if FEATURE_SPIFFS
-  LoadFromFile((char*)"pinstates.txt", 0, (byte*)&pinStates, sizeof(pinStates));
-#else
-  LoadFromFlash(sizeof(struct SettingsStruct), (byte*)&pinStates, sizeof(pinStates));
 #endif
 }
 

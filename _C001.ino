@@ -125,9 +125,6 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
               url += UserVar[event->BaseVarIndex];
             }
             break;
-          default:
-              url = urlParameters;
-              break;
         }
 
         url.toCharArray(log, 80);

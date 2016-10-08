@@ -4,29 +4,6 @@
 
 void hardwareInit()
 {
-  LoadPinStates();
-  int i;
-  for(i=0; i<PINSTATE_TABLE_MAX; i++)
-  {
-    if(pinStates[i].plugin > 0)
-    {
-      Serial.printf("Setting pin %d to %d\r\n", pinStates[i].index, pinStates[i].value);
-
-      if(pinStates[i].mode == PIN_MODE_OUTPUT)
-      {
-        pinMode(pinStates[i].index,OUTPUT);
-        digitalWrite(pinStates[i].index, pinStates[i].value);
-        Settings.PinBootStates[pinStates[i].index] = 0;
-      }
-      else if(pinStates[i].mode == PIN_MODE_PWM)
-      {
-        pinMode(pinStates[i].index,OUTPUT);
-        analogWrite(pinStates[i].index, pinStates[i].value);
-        Settings.PinBootStates[pinStates[i].index] = 0;
-      }
-    }
-  }
-
   // set GPIO pins state if not set to default
   for (byte x=0; x < 17; x++)
     if (Settings.PinBootStates[x] != 0)
@@ -84,4 +61,6 @@ void hardwareInit()
       }
     }
   }
+
+  Plugin_105_pinsetup();
 }

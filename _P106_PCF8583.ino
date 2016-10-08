@@ -80,18 +80,18 @@ void Plugin_106_ReadTime(uint8_t* timerval)
         log += String(hex);
       }
 
-      timerval[0] = BCD_TO_BIN(i2cval[1]);
-      timerval[1] = BCD_TO_BIN(i2cval[2]);
-      timerval[2] = BCD_TO_BIN(i2cval[3]);
-      timerval[3] = ((i2cval[4] >> 4) & 3) * 10 + (i2cval[4] & 0x0F);
-      timerval[4] = (i2cval[6] >> 5);
+      timerval[0] = BCD_TO_BIN(i2cval[1]);  // 100th seconds
+      timerval[1] = BCD_TO_BIN(i2cval[2]);  // seconds
+      timerval[2] = BCD_TO_BIN(i2cval[3]);  // minutes
+      timerval[3] = ((i2cval[4] >> 4) & 3) * 10 + (i2cval[4] & 0x0F); // hours
+      timerval[4] = (i2cval[6] >> 5);       // weekday
       if(timerval[4] >= 7)
         timerval[4] = 0;
-      timerval[5] = ((i2cval[5] & 0x30) >> 4) * 10 + (i2cval[5] & 0x0F);
-      timerval[6] = ((i2cval[6] & 0x10) >> 4) * 10 + (i2cval[6] & 0x0F);
-      timerval[7] = (i2cval[5] >> 6);
+      timerval[5] = ((i2cval[5] & 0x30) >> 4) * 10 + (i2cval[5] & 0x0F);  // day
+      timerval[6] = ((i2cval[6] & 0x10) >> 4) * 10 + (i2cval[6] & 0x0F);  // month
+      timerval[7] = (i2cval[5] >> 6);       // years after last leap year
   }
-  addLog(LOG_LEVEL_INFO,log);
+  //addLog(LOG_LEVEL_INFO,log);
 }
 
 void Plugin_106_WriteTime(uint8_t* timerval)
@@ -119,7 +119,7 @@ void Plugin_106_WriteTime(uint8_t* timerval)
       log += String(hex);
     }
 
-    addLog(LOG_LEVEL_INFO,log);
+    //addLog(LOG_LEVEL_INFO,log);
 }
 
 boolean Plugin_106(byte function, struct EventStruct *event, String& string)
@@ -132,7 +132,7 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
       {
         Device[++deviceCount].Number = PLUGIN_ID_106;
         Device[deviceCount].Type = DEVICE_TYPE_I2C;
-        Device[deviceCount].VType = SENSOR_TYPE_OTHER; // none of the predefined
+        Device[deviceCount].VType = SENSOR_TYPE_SINGLE;
         Device[deviceCount].Ports = 0;
     		Device[deviceCount].Custom = true;
         break;
@@ -173,12 +173,6 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
         sprintf_P(timestr, PSTR("<TR><TD>Leap year:</TD><TD>+<input type='text' name='plugin_106_year' value='%u'/></TD></TR>"), timerval[7]);
         string += timestr;
 
-        urlParameters = F("/json.htm?type=command&param=time&idx=");
-        urlParameters += event->idx;
-        urlParameters += F("&svalue=");
-        sprintf_P(timestr, PSTR("%d:%02d:%02d+%s.%d.%d.%d"), timerval[3], timerval[2], timerval[1],
-          weekdays[timerval[4]], timerval[5], timerval[6], timerval[7]);
-        urlParameters += timestr;
         success = true;
         break;
       }
@@ -209,7 +203,7 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
           String plugin6 = WebServer.arg("plugin_106_month");
           timerval[6] = plugin6.toInt();
           String plugin7 = WebServer.arg("plugin_106_year");
-          timerval[7] = plugin6.toInt();
+          timerval[7] = plugin7.toInt();
 
           Plugin_106_WriteTime(timerval);
       		success = true;

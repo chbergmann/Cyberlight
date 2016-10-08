@@ -1,3 +1,4 @@
+#define ESP_CORE 210
 /****************************************************************************************************************************\
  * Arduino project "ESP Easy" © Copyright www.esp8266.nu
  *
@@ -64,6 +65,7 @@
 //   BMP280 I2C Barometric Pressure sensor
 //   SHT1X temperature/humidity sensors
 //   Ser2Net server
+//   Local Level Control to GPIO
 
 // ********************************************************************************
 //   User specific configuration
@@ -340,6 +342,10 @@ struct SettingsStruct
   unsigned long ConnectionFailuresThreshold;
   int16_t       TimeZone;
   boolean       MQTTRetainFlag;
+  boolean       plugin105_setColorByTime;
+  int16_t       plugin105_hueOffsetMidnight;
+  byte          plugin105_pinNo[4];
+  int16_t       plugin105_pinValue[4];
 } Settings;
 
 struct ExtraTaskSettingsStruct
@@ -438,7 +444,6 @@ int protocolCount = -1;
 boolean printToWeb = false;
 String printWebString = "";
 boolean printToWebJSON = false;
-String urlParameters = "";
 
 float UserVar[VARS_PER_TASK * TASKS_MAX];
 unsigned long RulesTimer[RULES_TIMER_MAX];
