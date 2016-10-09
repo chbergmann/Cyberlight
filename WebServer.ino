@@ -4,7 +4,8 @@
 void WebServerInit()
 {
   // Prepare webserver pages
-  WebServer.on("/", handle_root);
+  WebServer.on("/", handle_cyberlight);
+  WebServer.on("/espeasy", handle_root);
   WebServer.on("/config", handle_config);
   WebServer.on("/hardware", handle_hardware);
   WebServer.on("/devices", handle_devices);
@@ -2622,4 +2623,3 @@ String URLEncode(const char* msg)
   }
   return encodedMsg;
 }
-

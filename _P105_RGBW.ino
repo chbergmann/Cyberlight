@@ -42,7 +42,7 @@ struct Plugin_105_structMiLight
 	float HueLevel = 0;
 	float LumLevel = 0.5;
 	float SatLevel = 1;
-  float HueOffset = -5;
+  int HueOffset = -5;
 	boolean ColourOn = false;
 	boolean WhiteOn = false;
   boolean RGBWhiteOn = false;
@@ -635,9 +635,79 @@ void Plugin_105_SetColors()
  	for(i=0; i<4; i++)
 	{
   	analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
-
+/*
 		char tmp[100];
 		sprintf_P(tmp, "Pin %d = %d\n", Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
-		addLog(LOG_LEVEL_INFO, tmp);
+		addLog(LOG_LEVEL_INFO, tmp);*/
+	}
+}
+
+void Plugin_105_SetRGBW(int r, int g, int b, int w)
+{
+	Plugin_105_Pins[0].CurrentLevel = r;
+	Plugin_105_Pins[1].CurrentLevel = g;
+	Plugin_105_Pins[2].CurrentLevel = b;
+	Plugin_105_Pins[3].CurrentLevel = w;
+	Plugin_105_SetColors();
+
+	int red = Plugin_105_Pins[0].CurrentLevel / 4;
+	int green = Plugin_105_Pins[1].CurrentLevel / 4;
+	int blue = Plugin_105_Pins[2].CurrentLevel / 4;
+
+  float min = red;
+	if(green < min) min = green;
+	if(blue < min) min = blue;
+
+  float max = red;
+	if(green > max) max = green;
+	if(blue > max) max = blue;
+
+  float hue = 0;
+  if (max == red) {
+      hue = (green - blue) / (max - min);
+
+  } else if (max == green) {
+      hue = 2.0 + (blue - red) / (max - min);
+
+  } else {
+      hue = 4.0 + (red - green) / (max - min);
+  }
+
+  hue = hue * 60;
+  if (hue < 0) hue = hue + 360;
+
+	Plugin_105_MiLight.HueLevel = hue / 360;
+
+	Plugin_105_MiLight.LumLevel = (0.333 * Plugin_105_Pins[0].CurrentLevel +
+			0.333 * Plugin_105_Pins[1].CurrentLevel +
+			0.333 * Plugin_105_Pins[2].CurrentLevel) / 1023;
+
+	Plugin_105_MiLight.SatLevel = 1;
+}
+
+int Plugin_105_GetRGBW(int pin)
+{
+	return Plugin_105_Pins[pin].CurrentLevel;
+}
+
+void Plugin_105_GetHSL(int *hue, int *sat, int *lum)
+{
+		*hue = Plugin_105_MiLight.HueLevel * 360;
+		*lum = Plugin_105_MiLight.LumLevel * 1023;
+		*sat = Plugin_105_MiLight.SatLevel * 1023;
+}
+
+void Plugin_105_SetColorsByHSL(int hue, int sat, int lum)
+{
+	float f = (hue /*+	Plugin_105_MiLight.HueOffset*/) % 360;
+	Plugin_105_MiLight.HueLevel = f / 360;
+	Plugin_105_MiLight.SatLevel = (float)sat / 1023;
+	Plugin_105_MiLight.LumLevel = (float)lum / 1023;
+	Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
+	int i;
+
+	for(i=0; i<3; i++)
+	{
+		analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
 	}
 }

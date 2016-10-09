@@ -212,20 +212,26 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
 
     case PLUGIN_WEBFORM_SHOW_VALUES:
       {
-        uint8_t timerval[8];
-        char timestr[100];
-        Plugin_106_ReadTime(timerval);
-        if(timerval[5] == 0)
-          string += "RTC not found !";
-        else
-        {
-          sprintf_P(timestr, PSTR("%d:%02d:%02d %s %d.%d"), timerval[3], timerval[2], timerval[1],
-            weekdays[timerval[4]], timerval[5], timerval[6]);
-          string += timestr;
-        }
+        string += Plugin_106_GetTime();
         success = true;
         break;
       }
   }
   return success;
+}
+
+String Plugin_106_GetTime()
+{
+  uint8_t timerval[8];
+  char timestr[100];
+
+  Plugin_106_ReadTime(timerval);
+  if(timerval[5] == 0)
+    return "RTC not found !";
+  else
+  {
+    sprintf_P(timestr, PSTR("%d:%02d:%02d %s %d.%d"), timerval[3], timerval[2], timerval[1],
+      weekdays[timerval[4]], timerval[5], timerval[6]);
+    return timestr;
+  }
 }
