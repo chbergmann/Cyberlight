@@ -630,16 +630,7 @@ void Plugin_105_SetColors()
 		logstr += Plugin_105_MiLight.HueLevel;
 		addLog(LOG_LEVEL_INFO, logstr);
 	}
-
- 	int i;
- 	for(i=0; i<4; i++)
-	{
-  	analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
-/*
-		char tmp[100];
-		sprintf_P(tmp, "Pin %d = %d\n", Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
-		addLog(LOG_LEVEL_INFO, tmp);*/
-	}
+	Plugin_105_ApplyColors();
 }
 
 void Plugin_105_SetRGBW(int r, int g, int b, int w)
@@ -683,6 +674,7 @@ void Plugin_105_SetRGBW(int r, int g, int b, int w)
 			0.333 * Plugin_105_Pins[2].CurrentLevel) / 1023;
 
 	Plugin_105_MiLight.SatLevel = 1;
+	Plugin_105_ApplyColors();
 }
 
 int Plugin_105_GetRGBW(int pin)
@@ -692,9 +684,9 @@ int Plugin_105_GetRGBW(int pin)
 
 void Plugin_105_GetHSL(int *hue, int *sat, int *lum)
 {
-		*hue = Plugin_105_MiLight.HueLevel * 360;
-		*lum = Plugin_105_MiLight.LumLevel * 1023;
-		*sat = Plugin_105_MiLight.SatLevel * 1023;
+	*hue = Plugin_105_MiLight.HueLevel * 360;
+	*lum = Plugin_105_MiLight.LumLevel * 1023;
+	*sat = Plugin_105_MiLight.SatLevel * 1023;
 }
 
 void Plugin_105_SetColorsByHSL(int hue, int sat, int lum)
@@ -704,10 +696,18 @@ void Plugin_105_SetColorsByHSL(int hue, int sat, int lum)
 	Plugin_105_MiLight.SatLevel = (float)sat / 1023;
 	Plugin_105_MiLight.LumLevel = (float)lum / 1023;
 	Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
-	int i;
+	Plugin_105_ApplyColors();
+}
 
-	for(i=0; i<3; i++)
+void Plugin_105_ApplyColors()
+{
+ 	int i;
+ 	for(i=0; i<4; i++)
 	{
-		analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+  		analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+/*
+		char tmp[100];
+		sprintf_P(tmp, "Pin %d = %d\n", Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+		addLog(LOG_LEVEL_INFO, tmp);*/
 	}
 }

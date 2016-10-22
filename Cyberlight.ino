@@ -7,22 +7,26 @@ void handle_cyberlight()
   String byTime = WebServer.arg("byTime");
   String hue = WebServer.arg("HUE");
   String lum = WebServer.arg("LUM");
+  boolean setByTime = Settings.plugin105_setColorByTime;
+
   if(red != "")
   {
+    Settings.plugin105_setColorByTime = false;
     Plugin_105_SetRGBW(red.toInt(), grn.toInt(), blu.toInt(), whi.toInt());
+    Settings.plugin105_setColorByTime = setByTime;
   }
 
-  boolean setByTime = Settings.plugin105_setColorByTime;
   if(hue != "")
   {
     Plugin_105_SetColorsByHSL(hue.toInt(), 1023, lum.toInt());
     setByTime = (byTime == "on");
-  }
-  if(setByTime != Settings.plugin105_setColorByTime)
-  {
-    Settings.plugin105_setColorByTime = setByTime;
-    Plugin_105_SetColors();
-    SaveSettings();
+
+    if(setByTime != Settings.plugin105_setColorByTime)
+    {
+      Settings.plugin105_setColorByTime = setByTime;
+      Plugin_105_SetColors();
+      SaveSettings();
+    }  
   }
 
   int huelevel, sat, lumlevel;

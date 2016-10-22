@@ -141,6 +141,7 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
   	case PLUGIN_INIT:
     	{
     		LoadTaskSettings(event->TaskIndex);
+        Plugin_106_UpdateTimeNTP();
         break;
       }
 
@@ -173,6 +174,12 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
         sprintf_P(timestr, PSTR("<TR><TD>Leap year:</TD><TD>+<input type='text' name='plugin_106_year' value='%u'/></TD></TR>"), timerval[7]);
         string += timestr;
 
+        sprintf_P(timestr, PSTR("<TR><TD>Set time by NTP</TD><TD><input type='checkbox' name='plugin_106_ntp'"));
+        string += timestr;
+        if(Settings.UseNTP)
+          string += " checked";
+
+        string += "/></TD></TR>";
         success = true;
         break;
       }
@@ -205,7 +212,14 @@ boolean Plugin_106(byte function, struct EventStruct *event, String& string)
           String plugin7 = WebServer.arg("plugin_106_year");
           timerval[7] = plugin7.toInt();
 
-          Plugin_106_WriteTime(timerval);
+          String plugin8 = WebServer.arg("plugin_106_ntp");
+          Settings.UseNTP = plugin8 == "on";
+
+          if(Settings.UseNTP)
+            Plugin_106_UpdateTimeNTP();
+          else
+            Plugin_106_WriteTime(timerval);
+
       		success = true;
       		break;
       	}
@@ -224,14 +238,55 @@ String Plugin_106_GetTime()
 {
   uint8_t timerval[8];
   char timestr[100];
+  const uint8_t monthDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
   Plugin_106_ReadTime(timerval);
   if(timerval[5] == 0)
     return "RTC not found !";
   else
   {
+    unsigned long secsSince1900 = (24 * 3600 * timerval[5]) + (3600 * timerval[3]) + (60 * timerval[2]) + timerval[1];
+    int m;
+    for(m=0; m<timerval[6]-1; m++)
+    {
+      secsSince1900 += monthDays[m] * 24 * 3600;
+      if(m == 1 && (timerval[7] % 4) == 0)
+        secsSince1900 += 24 * 3600;
+    }
+    secsSince1900 += 365 * 24 * 3600;
+    setTime(secsSince1900);
+
     sprintf_P(timestr, PSTR("%d:%02d:%02d %s %d.%d"), timerval[3], timerval[2], timerval[1],
       weekdays[timerval[4]], timerval[5], timerval[6]);
     return timestr;
   }
+}
+
+int Plugin_106_UpdateTimeNTP()
+{
+  unsigned long secsSince1900 = getNtpTime();
+  if(secsSince1900 == 0)
+  {
+    addLog(LOG_LEVEL_DEBUG_MORE, "Getting time by NTP failed !");
+    return -1;
+  }
+
+  setTime(secsSince1900);
+  struct timeStruct tm;
+  breakTime(secsSince1900, tm);
+
+  uint8_t timerval[8];
+  timerval[0] = 0; //"Hundredth second"
+  timerval[1] = tm.Second;
+  timerval[2] = tm.Minute;
+  timerval[3] = tm.Hour;
+  if(tm.Wday < 2)
+    timerval[4] = 6;
+  else
+    timerval[4] = tm.Wday - 2;
+  timerval[5] = tm.Day;
+  timerval[6] = tm.Month;
+  timerval[7] = (tm.Year - 2) % 4;
+
+  Plugin_106_WriteTime(timerval);
 }

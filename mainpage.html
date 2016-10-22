@@ -1,0 +1,29 @@
+<html>
+<head>
+  <title>Cyberlight</title>
+  <script type='text/javascript'>
+    function submit() { document.getElementById('colorForm').submit(); }
+  </script>
+  <style>
+    h1 { text-align:center; }
+    input { width:99%; margin:10; }
+    table { width:100%; }
+    #R { background-color:red; }
+    #G { background-color:green; }
+    #B { background-color:blue; }
+    #W { background-color:#FFFFCC; }
+  </style>
+</head>
+<body>
+  <h1>Cyberlight</h1>
+  <form method='post'>
+      <input id='R' min='0' max='1023' type='range' name='R' value='550' onchange='submit()'/><br>
+      <input id='G' min='0' max='1023' type='range' name='G' value='35' onchange='submit()'/><br>
+      <input id='B' min='0' max='1023' type='range' name='B' value='1023' onchange='submit()'/><br>
+      <input id='W' min='0' max='1023' type='range' name='W' value='234' onchange='submit()'/><br>
+    <br>
+    <br>
+  </form>
+  <a href='espeasy'>Config</a>
+</body>
+</html>
