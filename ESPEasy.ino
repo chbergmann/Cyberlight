@@ -346,6 +346,9 @@ struct SettingsStruct
   int16_t       plugin105_hueOffsetMidnight;
   byte          plugin105_pinNo[4];
   int16_t       plugin105_pinValue[4];
+  byte          cyberlight_wakeup_h;
+  byte          cyberlight_wakeup_min;
+  int16_t       cyberlight_fade_sec;
 } Settings;
 
 struct ExtraTaskSettingsStruct

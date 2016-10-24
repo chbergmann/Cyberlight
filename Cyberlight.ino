@@ -1,3 +1,6 @@
+
+boolean cyberlight_wakeup = false;
+
 void handle_cyberlight()
 {
   String red = WebServer.arg("R");
@@ -7,6 +10,9 @@ void handle_cyberlight()
   String byTime = WebServer.arg("byTime");
   String hue = WebServer.arg("HUE");
   String lum = WebServer.arg("LUM");
+  String wake_h = WebServer.arg("Wake_h");
+  String wake_m = WebServer.arg("Wake_min");
+  String fade = WebServer.arg("Fade");
   boolean setByTime = Settings.plugin105_setColorByTime;
 
   if(red != "")
@@ -29,6 +35,17 @@ void handle_cyberlight()
     }  
   }
 
+  if(wake_h != "" && wake_m != "")
+  {
+    Settings.cyberlight_wakeup_h = wake_h.toInt();
+    Settings.cyberlight_wakeup_min = wake_m.toInt();
+    Settings.cyberlight_fade_sec = fade.toInt();
+    cyberlight_wakeup = true;
+    int i;
+    for(i=0; i<4; i++)
+      Plugin_105_Fade(i, 0, 1);
+  }
+
   int huelevel, sat, lumlevel;
   Plugin_105_GetHSL(&huelevel, &sat, &lumlevel);
 
@@ -37,7 +54,8 @@ void handle_cyberlight()
   html += F("function submit() { document.getElementById('colorForm').submit(); }");
   html += F("function submitH() { document.getElementById('hueForm').submit(); }");
   html += F("</script><style>");
-  html += F("body { font-size:x-large; text-align:center; }");
+  html += F("body { font-size:xx-large; text-align:center; }");
+  html += F("h1 { font-size:xx-large; }");
   html += F("#R { background-color:red; }");
   html += F("#G { background-color:green; }");
   html += F("#B { background-color:blue; }");
@@ -46,6 +64,8 @@ void handle_cyberlight()
   html += F("#LUM { background: linear-gradient(90deg, black, #FFFFCC) }");
   html += F("#byTime: { transform:scale(4); margin:20 }");
   html += F("#R, #G, #B, #W, #HUE, #LUM { width:99%; height:6%; margin:10; }");
+  html += F("input { font-size:x-large; }");
+  html += F("#Wake { width:5%; text-align:right; }");
   html += F("</style></head>");
   html += F("<body><h1>Cyberlight</h1>");
   html += F("<p><form id='colorForm' method='post'>");
@@ -67,7 +87,15 @@ void handle_cyberlight()
     html += " checked";
 
   html += F(" onchange='submitH()'/>");
-  //html += F("<TR><TD colspan='2'><input value='Update' type='submit'/>");
+  html += F("</form></p><p>");
+  html += F("<form id='alarmclockForm' method='post'>");
+  html += F("Wake up at <input type='text' id='Wake' name='Wake_h' value='");
+  html += Settings.cyberlight_wakeup_h;
+  html += F("'/>:<input type='text' id='Wake' name='Wake_min' value='");
+  html += Settings.cyberlight_wakeup_min;
+  html += F("'/> Fade in in <input type='text' id='Wake' name='Fade' value='");
+  html += Settings.cyberlight_fade_sec;
+  html += F("'/> seconds <input type='submit' value='Good night !'>");
   html += F("</form></p><a href='espeasy'>Config</a>");
   html += F("</body></html>");
 
