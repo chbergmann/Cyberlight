@@ -32,18 +32,24 @@ void handle_cyberlight()
       Settings.plugin105_setColorByTime = setByTime;
       Plugin_105_SetColors();
       SaveSettings();
-    }  
+    }
   }
 
   if(wake_h != "" && wake_m != "")
   {
-    Settings.cyberlight_wakeup_h = wake_h.toInt();
-    Settings.cyberlight_wakeup_min = wake_m.toInt();
-    Settings.cyberlight_fade_sec = fade.toInt();
-    cyberlight_wakeup = true;
-    int i;
-    for(i=0; i<4; i++)
-      Plugin_105_Fade(i, 0, 1);
+    if(cyberlight_wakeup)
+    {
+      Plugin_105_wakeup();
+      cyberlight_wakeup = false;
+    }
+    else
+    {
+      Settings.cyberlight_wakeup_h = wake_h.toInt();
+      Settings.cyberlight_wakeup_min = wake_m.toInt();
+      Settings.cyberlight_fade_sec = fade.toInt();
+      cyberlight_wakeup = true;
+      Plugin_105_Fade(0, 0, Settings.cyberlight_fade_sec);
+    }
   }
 
   int huelevel, sat, lumlevel;
@@ -59,12 +65,12 @@ void handle_cyberlight()
   html += F("#R { background-color:red; }");
   html += F("#G { background-color:green; }");
   html += F("#B { background-color:blue; }");
-  html += F("#W { background-color:#FFFFCC; }");
+  html += F("#W, #button { background-color:#FFFFCC; }");
   html += F("#HUE { background: linear-gradient(90deg, #FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000) }");
   html += F("#LUM { background: linear-gradient(90deg, black, #FFFFCC) }");
   html += F("#byTime: { transform:scale(4); margin:20 }");
   html += F("#R, #G, #B, #W, #HUE, #LUM { width:99%; height:6%; margin:10; }");
-  html += F("input { font-size:x-large; }");
+  html += F("input { font-size:xx-large; }");
   html += F("#Wake { width:5%; text-align:right; }");
   html += F("</style></head>");
   html += F("<body><h1>Cyberlight</h1>");
@@ -88,15 +94,23 @@ void handle_cyberlight()
 
   html += F(" onchange='submitH()'/>");
   html += F("</form></p><p>");
+
   html += F("<form id='alarmclockForm' method='post'>");
   html += F("Wake up at <input type='text' id='Wake' name='Wake_h' value='");
   html += Settings.cyberlight_wakeup_h;
   html += F("'/>:<input type='text' id='Wake' name='Wake_min' value='");
+  if(Settings.cyberlight_wakeup_min < 10)
+    html += F("0");
   html += Settings.cyberlight_wakeup_min;
-  html += F("'/> Fade in in <input type='text' id='Wake' name='Fade' value='");
+  html += F("'/> <input id='button' type='submit' value='");
+  if(!cyberlight_wakeup)
+    html += F("Good night !'/>");
+  else
+    html += F("Cancel'/>");
+
+  html += F(" Fade in seconds: <input type='text' id='Wake' name='Fade' value='");
   html += Settings.cyberlight_fade_sec;
-  html += F("'/> seconds <input type='submit' value='Good night !'>");
-  html += F("</form></p><a href='espeasy'>Config</a>");
+  html += F("'/> </form></p><a href='espeasy'>Config</a>");
   html += F("</body></html>");
 
   WebServer.send(200, "text/html", html);
