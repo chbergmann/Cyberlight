@@ -5,6 +5,7 @@ void WebServerInit()
 {
   // Prepare webserver pages
   WebServer.on("/", handle_cyberlight);
+  WebServer.on("/clconfig", handle_clconfig);
   WebServer.on("/espeasy", handle_root);
   WebServer.on("/config", handle_config);
   WebServer.on("/hardware", handle_hardware);
@@ -111,7 +112,8 @@ void addHeader(boolean showMenu, String& str)
 
   if (showMenu)
   {
-    str += F("<BR><a class=\"button-menu\" href=\".\">Main</a>");
+    str += F("<BR><a class=\"button-menu\" href=\".\">Cyberlight</a>");
+    str += F("<a class=\"button-menu\" href=\"espeasy\">Main</a>");
     str += F("<a class=\"button-menu\" href=\"config\">Config</a>");
     str += F("<a class=\"button-menu\" href=\"hardware\">Hardware</a>");
     str += F("<a class=\"button-menu\" href=\"devices\">Devices</a>");

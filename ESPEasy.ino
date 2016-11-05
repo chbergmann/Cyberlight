@@ -281,6 +281,19 @@ struct SecurityStruct
   char          Password[26];
 } SecuritySettings;
 
+struct CyberlightSt
+{
+  byte     wakeup_h;
+  byte     wakeup_min;
+  int16_t  fadeIn_sec;
+  int16_t  fadeOut_sec;
+  int16_t  fadeIn_extra_sec;
+  byte     fadeIn_extra_from_h;
+  byte     fadeIn_extra_from_min;
+  byte     fadeIn_extra_to_h;
+  byte     fadeIn_extra_to_min;
+};
+
 struct SettingsStruct
 {
   unsigned long PID;
@@ -346,9 +359,7 @@ struct SettingsStruct
   int16_t       plugin105_hueOffsetMidnight;
   byte          plugin105_pinNo[4];
   int16_t       plugin105_pinValue[4];
-  byte          cyberlight_wakeup_h;
-  byte          cyberlight_wakeup_min;
-  int16_t       cyberlight_fade_sec;
+  struct CyberlightSt CyberlightSettings;
 } Settings;
 
 struct ExtraTaskSettingsStruct

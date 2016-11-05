@@ -245,7 +245,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 	{
 		if(cyberlight_wakeup)
 		{
-			if(hour() == Settings.cyberlight_wakeup_h && minute() == Settings.cyberlight_wakeup_min)
+			if(hour() == Settings.CyberlightSettings.wakeup_h && minute() == Settings.CyberlightSettings.wakeup_min)
 			{
 				Plugin_105_wakeup();
 			}
@@ -373,16 +373,24 @@ void Plugin_105_pinsetup()
 void Plugin_105_Fade(float FadingTargetRGBLum, float FadingTargetWhiteLum, int seconds)
 {
 	String logstr = "Fade ";
-	int h, s, l;
-	Plugin_105_Fader[0].FadingTargetLum = FadingTargetRGBLum;
-	Plugin_105_Fader[0].CurrentLum = Plugin_105_MiLight.LumLevel;
-	Plugin_105_Fader[0].FadingPerStep = (FadingTargetRGBLum - Plugin_105_MiLight.LumLevel) / (seconds * Plugin_105_FadingRate);
+	if(seconds == 0)
+	{
+		Plugin_105_MiLight.LumLevel = FadingTargetRGBLum;
+		Plugin_105_Pins[3].CurrentLevel = FadingTargetWhiteLum * 1023;
+		Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
+		Plugin_105_ApplyColors();
+	}
+	else
+	{
+		Plugin_105_Fader[0].FadingTargetLum = FadingTargetRGBLum;
+		Plugin_105_Fader[0].CurrentLum = Plugin_105_MiLight.LumLevel;
+		Plugin_105_Fader[0].FadingPerStep = (FadingTargetRGBLum - Plugin_105_MiLight.LumLevel) / (seconds * Plugin_105_FadingRate);
 
-	Plugin_105_Fader[1].FadingTargetLum = FadingTargetWhiteLum;
-	float w = Plugin_105_Pins[3].CurrentLevel;
-	Plugin_105_Fader[1].CurrentLum = w / 1023;
-	Plugin_105_Fader[1].FadingPerStep = (FadingTargetWhiteLum - Plugin_105_Fader[1].CurrentLum) / (seconds * Plugin_105_FadingRate);
-
+		Plugin_105_Fader[1].FadingTargetLum = FadingTargetWhiteLum;
+		float w = Plugin_105_Pins[3].CurrentLevel;
+		Plugin_105_Fader[1].CurrentLum = w / 1023;
+		Plugin_105_Fader[1].FadingPerStep = (FadingTargetWhiteLum - Plugin_105_Fader[1].CurrentLum) / (seconds * Plugin_105_FadingRate);
+	}
 	logstr += Plugin_105_Fader[0].CurrentLum;
 	logstr += " - ";
 	logstr += Plugin_105_Fader[0].FadingTargetLum;
@@ -770,7 +778,14 @@ void Plugin_105_wakeup()
 	float w = Settings.plugin105_pinValue[3];
 	Plugin_105_MiLight.LumLevel = 0;
 	Plugin_105_Pins[3].CurrentLevel = 0;
-	Plugin_105_Fade(0.5, w / 1023, Settings.cyberlight_fade_sec);
+
+	int m = hour() * 60 + minute();
+	int from = Settings.CyberlightSettings.fadeIn_extra_from_h * 60 + Settings.CyberlightSettings.fadeIn_extra_from_min;
+	int to = Settings.CyberlightSettings.fadeIn_extra_to_h * 60 + Settings.CyberlightSettings.fadeIn_extra_to_min;
+	if((from < to && m >= from && m <= to) || (from > to && (m >= from || m <= to)))
+		Plugin_105_Fade(0.5, w / 1023, Settings.CyberlightSettings.fadeIn_extra_sec);
+	else
+		Plugin_105_Fade(0.5, w / 1023, Settings.CyberlightSettings.fadeIn_sec);
 
 	cyberlight_wakeup = false;
 }
