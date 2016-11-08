@@ -35,6 +35,7 @@ void handle_cyberlight()
     }
   }
 
+
   if(WebServer.arg("onButton") == "ON")
   {
       Plugin_105_wakeup();
@@ -105,10 +106,11 @@ String print_style()
   html += F("#W, #button { background-color:#FFFFCC; }");
   html += F("#HUE { background: linear-gradient(90deg, #FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000) }");
   html += F("#LUM { background: linear-gradient(90deg, black, #FFFFCC) }");
-  html += F("#byTime: { transform:scale(4); margin:20 }");
+  html += F("#byTime: { transform:scale(4); margin:20px; }");
   html += F("#R, #G, #B, #W, #HUE, #LUM { width:99%; height:6%; margin:10; }");
   html += F("input { font-size:xx-large; text-align:right; }");
-  html += F("input[type='checkbox']{ transform: scale(3); }");
+  html += F("input[type='checkbox']{ transform: scale(3); margin-left:15px; }");
+  html += F("input[type='submit']{ width:15%; margin:1em; text-align:center; }");
   html += F("#Time { width:10%; }");
   html += F("table { width:100%; font-size:xx-large; }");
   html += F("a, #button {padding:5px 15px; background-color:#0077dd; color:#fff; border:solid 1px #fff; text-decoration:none}");
@@ -124,6 +126,7 @@ void handle_clconfig()
     Settings.CyberlightSettings.wakeup_h = WebServer.arg("Wake_h").toInt();
     Settings.CyberlightSettings.wakeup_min = WebServer.arg("Wake_min").toInt();
     Settings.plugin105_setColorByTime = (WebServer.arg("byTime") == "on");
+    Settings.plugin105_hueOffsetMidnight = WebServer.arg("hueoffset").toInt();
     Settings.CyberlightSettings.fadeIn_sec = WebServer.arg("fadeIn_sec").toInt();
     Settings.CyberlightSettings.fadeOut_sec = WebServer.arg("fadeOut_sec").toInt();
     Settings.CyberlightSettings.fadeIn_extra_sec = WebServer.arg("fadeIn_extra_sec").toInt();
@@ -131,6 +134,7 @@ void handle_clconfig()
     Settings.CyberlightSettings.fadeIn_extra_from_min = WebServer.arg("fadeIn_extra_from_min").toInt();
     Settings.CyberlightSettings.fadeIn_extra_to_h = WebServer.arg("fadeIn_extra_to_h").toInt();
     Settings.CyberlightSettings.fadeIn_extra_to_min = WebServer.arg("fadeIn_extra_to_min").toInt();
+    Plugin_105_SetColors();
     SaveSettings();
   }
 
@@ -159,6 +163,10 @@ void handle_clconfig()
   if(Settings.plugin105_setColorByTime)
     html += " checked";
   html += F("/></td></tr>");
+
+  html += F("<TR><TD>Hue offset at midnight:<TD><input type='text' name='hueoffset' value='");
+  html += Settings.plugin105_hueOffsetMidnight;
+  html += F("'/></td></tr>");
 
   html += F("<tr><td>Fade in</td><td><input type='text' id='fadeIn_sec' name='fadeIn_sec' value='");
   html += Settings.CyberlightSettings.fadeIn_sec;

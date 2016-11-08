@@ -95,13 +95,6 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
     string += tmpString;
     sprintf_P(tmpString, PSTR("<TR><TD>Hue Offset:<TD><input type='text' name='plugin_105_HueOffset' value='%d'>"), ExtraTaskSettings.TaskDevicePluginConfigLong[1]);
 		string += tmpString;
-    string += "<TR><TD>Set color by time<TD><input type='checkbox' name='plugin_106_timehue'";
-    if(Settings.plugin105_setColorByTime)
-      string += " checked";
-    string += ">";
-    sprintf_P(tmpString, PSTR("<TR><TD>Hue offset at midnight:<TD><input type='text' name='plugin_106_hueoffset' value='%u'>"),
-      Settings.plugin105_hueOffsetMidnight);
-    string += tmpString;
 		success = true;
 		break;
 	}
@@ -120,14 +113,6 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 		Settings.plugin105_pinNo[3] = plugin5.toInt();
     String plugin6 = WebServer.arg("plugin_105_HueOffset");
     ExtraTaskSettings.TaskDevicePluginConfigLong[1] = plugin6.toInt();
-		String plugin8 = WebServer.arg("plugin_106_timehue");
-		if(plugin8 == "on")
-			Settings.plugin105_setColorByTime = 1;
-		else
-			Settings.plugin105_setColorByTime = 0;
-
-		String plugin9 = WebServer.arg("plugin_106_hueoffset");
-		Settings.plugin105_hueOffsetMidnight = plugin9.toInt();
 
 		Plugin_105_pinsetup();
 		SaveTaskSettings(event->TaskIndex);
