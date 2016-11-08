@@ -390,6 +390,7 @@ void Plugin_105_Fade(float FadingTargetRGBLum, float FadingTargetWhiteLum, int s
 void Plugin_105_FadingTimer()
 {
 	int i;
+	bool apply = false;
 	for(i=0; i<2; i++)
 	{
 		if(Plugin_105_Fader[i].FadingPerStep != 0)
@@ -404,18 +405,16 @@ void Plugin_105_FadingTimer()
 				Plugin_105_Fader[i].FadingPerStep = 0;
 			}
 
-			if(i == 0)
-			{
-				Plugin_105_MiLight.LumLevel = Plugin_105_Fader[0].CurrentLum;
-				Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
-				Plugin_105_ApplyColors();
-			}
-			else if(i == 1)
-			{
-					Plugin_105_Pins[3].CurrentLevel = Plugin_105_Fader[1].CurrentLum * 1023;
-					Plugin_105_ApplyColors();
-			}
+			apply = true;
 		}
+	}
+	if(apply)
+	{
+		Plugin_105_MiLight.LumLevel = Plugin_105_Fader[0].CurrentLum;
+		Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
+		Plugin_105_Pins[3].CurrentLevel = Plugin_105_Fader[1].CurrentLum * 1023;
+		Plugin_105_ApplyColors();
+
 	}
 }
 
@@ -732,8 +731,9 @@ void Plugin_105_ApplyColors()
  	int i;
  	for(i=0; i<4; i++)
 	{
+		int val = (Plugin_105_Pins[i].CurrentLevel * Plugin_105_Pins[i].CurrentLevel + 1023) / 1024;
 		if((i < 3 && Plugin_105_MiLight.ColourOn) || (i == 3 && Plugin_105_MiLight.WhiteOn))
-  			analogWrite(Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
+  			analogWrite(Plugin_105_Pins[i].PinNo, val);
 		else
   			analogWrite(Plugin_105_Pins[i].PinNo, 0);
 /*
