@@ -133,24 +133,6 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			if (Plugin_105_milightUDP.begin(Plugin_105_MiLight.UDPPort)) addLog(LOG_LEVEL_INFO, "INIT: Milight UDP");
 		}
 
-		//rgbw gpio pins
-		boolean SetupTimer = false;
-
-		Plugin_105_pinsetup();
-		for (int PinIndex = 0; PinIndex < 4; PinIndex++)
-		{
-			if (Plugin_105_Pins[PinIndex].PinNo != 0)
-			{
-				SetupTimer = true;
-			}
-		}
-
-		if (SetupTimer == true)
-		{
-			addLog(LOG_LEVEL_INFO, "INIT: Milight Fading Timer");
-			Plugin_105_Ticker.attach_ms(1000 / Plugin_105_FadingRate, Plugin_105_FadingTimer);
-		}
-
 		Plugin_105_init = true;
 		success = true;
 		break;
@@ -343,16 +325,31 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 void Plugin_105_pinsetup()
 {
 	int i;
+	boolean SetupTimer = true;
 	for(i=0; i < 4; i++)
 	{
 		Plugin_105_Pins[i].PinNo = Settings.plugin105_pinNo[i];
 		Plugin_105_Pins[i].CurrentLevel = Settings.plugin105_pinValue[i];
 		Settings.PinBootStates[Settings.plugin105_pinNo[i]] = 0;
-		setPinState(105, i, PIN_MODE_PWM, Plugin_105_Pins[i].CurrentLevel);
-		pinMode(Plugin_105_Pins[i].PinNo, OUTPUT);
+		if (Plugin_105_Pins[i].PinNo > 0)
+		{
+			setPinState(105, i, PIN_MODE_PWM, Plugin_105_Pins[i].CurrentLevel);
+			pinMode(Plugin_105_Pins[i].PinNo, OUTPUT);
+		}
+		else
+		{
+			SetupTimer = false;
+		}
 	}
-	Plugin_105_SetColors();
-	Plugin_105_CheckPinChange();	// prevent autosave
+	//Plugin_105_SetColors();
+	//Plugin_105_CheckPinChange();	// prevent autosave
+	Plugin_105_wakeup();
+
+	if (SetupTimer == true)
+	{
+		addLog(LOG_LEVEL_INFO, "INIT: Milight Fading Timer");
+		Plugin_105_Ticker.attach_ms(1000 / Plugin_105_FadingRate, Plugin_105_FadingTimer);
+	}
 }
 
 void Plugin_105_Fade(float FadingTargetRGBLum, float FadingTargetWhiteLum, int seconds)
@@ -414,7 +411,7 @@ void Plugin_105_FadingTimer()
 		Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
 		Plugin_105_Pins[3].CurrentLevel = Plugin_105_Fader[1].CurrentLum * 1023;
 		Plugin_105_ApplyColors();
-
+		Plugin_105_CheckPinChange();	// prevent autosave
 	}
 }
 
@@ -701,6 +698,12 @@ void Plugin_105_SetRGBW(int r, int g, int b, int w)
 {
 	SetRGB(r, g, b);
 	Plugin_105_Pins[3].CurrentLevel = w;
+	Plugin_105_ApplyColors();
+}
+
+void Plugin_105_SetRGB(int r, int g, int b)
+{
+	SetRGB(r, g, b);
 	Plugin_105_ApplyColors();
 }
 

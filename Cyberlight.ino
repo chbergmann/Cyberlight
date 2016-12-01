@@ -13,6 +13,7 @@ void handle_cyberlight()
   String byTime = WebServer.arg("byTime");
   String hue = WebServer.arg("HUE");
   String lum = WebServer.arg("LUM");
+  String rgb = WebServer.arg("RGB");
   boolean setByTime = Settings.plugin105_setColorByTime;
 
   if(red != "")
@@ -20,6 +21,15 @@ void handle_cyberlight()
     Settings.plugin105_setColorByTime = false;
     Plugin_105_SetRGBW(red.toInt(), grn.toInt(), blu.toInt(), whi.toInt());
     Settings.plugin105_setColorByTime = setByTime;
+  }
+
+  if(rgb != "")
+  {
+    int rgb_i = (int) strtol( &rgb[1], NULL, 16);
+    int r = (rgb_i & 0xFF0000) >> 16;
+    int g = (rgb_i & 0xFF00) >> 8;
+    int b = (rgb_i & 0xFF);
+    Plugin_105_SetRGB(r*4, g*4, b*4);
   }
 
   if(hue != "")
@@ -53,6 +63,7 @@ void handle_cyberlight()
   String html = F("<html><head><title>Cyberlight</title>");
   html += F("<script type='text/javascript'>");
   html += F("function submit() { document.getElementById('colorForm').submit(); }");
+  html += F("function submitCP() { document.getElementById('colpickForm').submit(); }");
   html += F("function submitH() { document.getElementById('hueForm').submit(); }");
   html += F("</script>");
   html += print_style();
@@ -64,15 +75,22 @@ void handle_cyberlight()
   html += print_slider(2, "B");
   html += print_slider(3, "W");
   html += F("</form></p><hr><p><form id='hueForm' method='post'>");
-  html += F("<input id='HUE' min='0' max='360' type='range' name='HUE' value='");
+  html += F("<div id='HUE'><input id='HUE' min='0' max='360' type='range' name='HUE' value='");
   html += huelevel;
-  html += F("' onchange='submitH()'/><br>");
-  html += F("<input id='LUM' min='0' max='1023' type='range' name='LUM' value='");
+  html += F("' onchange='submitH()'/></div>");
+  html += F("<div id='LUM'><input id='LUM' min='0' max='1023' type='range' name='LUM' value='");
   html += lumlevel;
-  html += F("' onchange='submitH()'/><hr>");
-  html += Plugin_106_GetTime();
-  html += F("</form></p><p>");
+  html += F("' onchange='submitH()'/></div>");
+  html += F("</form>");
 
+  html += F("<form id='colpickForm' method='post'>");
+  html += F("<input id='RGB' type='color' name='RGB' value='");
+  char col[100];
+  sprintf(col, "#%02X%02X%02X", Plugin_105_GetRGBW(0)/4, Plugin_105_GetRGBW(1)/4, Plugin_105_GetRGBW(2)/4);
+  html += col;
+  html += F("' onchange='submitCP()'/></form></p><hr>");
+
+  html += Plugin_106_GetTime();
   html += F("<form id='alarmclockForm' method='post'>");
   html += F("<input id='button' type='submit' name='onButton' value='ON'/>");
   html += F("<input id='button' type='submit' name='offButton' value='OFF'/>");
@@ -84,13 +102,15 @@ void handle_cyberlight()
 
 String print_slider(int pin, String name)
 {
-  String html = F("<input id='");
+  String html = F("<div id='");
+  html += name;
+  html += F("'><input id='");
   html += name;
   html += F("' min='0' max='1023' type='range' name='");
   html += name;
   html += F("' value='");
   html += Plugin_105_GetRGBW(pin);
-  html += F("' onchange='submit()'/><br>");
+  html += F("' onchange='submit()'/></div>");
   return html;
 }
 
@@ -107,8 +127,9 @@ String print_style()
   html += F("#HUE { background: linear-gradient(90deg, #FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000) }");
   html += F("#LUM { background: linear-gradient(90deg, black, #FFFFCC) }");
   html += F("#byTime: { transform:scale(4); margin:20px; }");
-  html += F("#R, #G, #B, #W, #HUE, #LUM { width:99%; height:6%; margin:10; }");
-  html += F("input { font-size:xx-large; text-align:right; }");
+  html += F("#R, #G, #B, #W, #HUE, #LUM { height:1em; margin-bottom:1em; }");
+  html += F("input { font-size:xx-large; text-align:center;  }");
+  html += F("input[type='range'] { width:100%; margin:0; padding:0; }");
   html += F("input[type='checkbox']{ transform: scale(3); margin-left:15px; }");
   html += F("input[type='submit']{ width:15%; margin:1em; text-align:center; }");
   html += F("#Time { width:10%; }");
