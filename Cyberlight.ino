@@ -3,6 +3,7 @@
 //#######################################################################################################
 
 boolean cyberlight_wakeup = false;
+String timestr = "zeitlos";
 
 void handle_cyberlight()
 {
@@ -29,12 +30,12 @@ void handle_cyberlight()
     int r = (rgb_i & 0xFF0000) >> 16;
     int g = (rgb_i & 0xFF00) >> 8;
     int b = (rgb_i & 0xFF);
-    Plugin_105_SetRGB(r*4, g*4, b*4);
+    Plugin_105_SetRGB(r, g, b);
   }
 
   if(hue != "")
   {
-    Plugin_105_SetColorsByHSL(hue.toInt(), 1023, lum.toInt());
+    Plugin_105_SetColorsByHSL(hue.toInt(), 255, lum.toInt());
     setByTime = (byTime == "on");
 
     if(setByTime != Settings.plugin105_setColorByTime)
@@ -46,15 +47,21 @@ void handle_cyberlight()
   }
 
 
-  if(WebServer.arg("onButton") == "ON")
+  if(WebServer.arg("xButton") == "M1")
   {
-      Plugin_105_wakeup();
-      cyberlight_wakeup = false;
+	  Serial.println("M1\r\nSV\r\n");
   }
-  if(WebServer.arg("offButton") == "OFF")
+  if(WebServer.arg("xButton") == "M2")
   {
-      cyberlight_wakeup = true;
-      Plugin_105_Fade(0, 0, Settings.CyberlightSettings.fadeOut_sec);
+	  Serial.println("M2\r\nSV\r\n");
+  }
+  if(WebServer.arg("xButton") == "M3")
+  {
+	  Serial.println("M3\r\nSV\r\n");
+  }
+  if(WebServer.arg("xButton") == "Time")
+  {
+	  Serial.println("M4\r\nSV\r\n");
   }
 
   int huelevel, sat, lumlevel;
@@ -78,7 +85,7 @@ void handle_cyberlight()
   html += F("<div id='HUE'><input id='HUE' min='0' max='360' type='range' name='HUE' value='");
   html += huelevel;
   html += F("' onchange='submitH()'/></div>");
-  html += F("<div id='LUM'><input id='LUM' min='0' max='1023' type='range' name='LUM' value='");
+  html += F("<div id='LUM'><input id='LUM' min='0' max='255' type='range' name='LUM' value='");
   html += lumlevel;
   html += F("' onchange='submitH()'/></div>");
   html += F("</form>");
@@ -86,14 +93,16 @@ void handle_cyberlight()
   html += F("<form id='colpickForm' method='post'>");
   html += F("<input id='RGB' type='color' name='RGB' value='");
   char col[100];
-  sprintf(col, "#%02X%02X%02X", Plugin_105_GetRGBW(0)/4, Plugin_105_GetRGBW(1)/4, Plugin_105_GetRGBW(2)/4);
+  sprintf(col, "#%02X%02X%02X", Plugin_105_GetRGBW(0), Plugin_105_GetRGBW(1), Plugin_105_GetRGBW(2));
   html += col;
   html += F("' onchange='submitCP()'/></form></p><hr>");
 
-  html += Plugin_106_GetTime();
+  html += timestr;
   html += F("<form id='alarmclockForm' method='post'>");
-  html += F("<input id='button' type='submit' name='onButton' value='ON'/>");
-  html += F("<input id='button' type='submit' name='offButton' value='OFF'/>");
+  html += F("<input id='button' type='submit' name='xButton' value='M1'/>");
+  html += F("<input id='button' type='submit' name='xButton' value='M2'/>");
+  html += F("<input id='button' type='submit' name='xButton' value='M3'/>");
+  html += F("<input id='button' type='submit' name='xButton' value='Time'/>");
   html += F("</form></p><a href='clconfig'>Config</a>");
   html += F("</body></html>");
 
@@ -106,7 +115,7 @@ String print_slider(int pin, String name)
   html += name;
   html += F("'><input id='");
   html += name;
-  html += F("' min='0' max='1023' type='range' name='");
+  html += F("' min='0' max='255' type='range' name='");
   html += name;
   html += F("' value='");
   html += Plugin_105_GetRGBW(pin);
@@ -127,9 +136,9 @@ String print_style()
   html += F("#HUE { background: linear-gradient(90deg, #FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000) }");
   html += F("#LUM { background: linear-gradient(90deg, black, #FFFFCC) }");
   html += F("#byTime: { transform:scale(4); margin:20px; }");
-  html += F("#R, #G, #B, #W, #HUE, #LUM { height:1em; margin-bottom:1em; }");
+  html += F("#R, #G, #B, #W, #HUE, #LUM { height:1em; padding-top:0.5em; padding-bottom:0.5em; }");
   html += F("input { font-size:xx-large; text-align:center;  }");
-  html += F("input[type='range'] { width:100%; margin:0; padding:0; }");
+  html += F("input[type='range'] { height:1em; width:100%; margin:0; padding:0; }");
   html += F("input[type='checkbox']{ transform: scale(3); margin-left:15px; }");
   html += F("input[type='submit']{ width:15%; margin:1em; text-align:center; }");
   html += F("#Time { width:10%; }");
@@ -225,4 +234,34 @@ void handle_clconfig()
   html += F("</div></body></html>");
 
   WebServer.send(200, "text/html", html);
+}
+
+void parse_STM8_cyberlight(char *Command)
+{
+	if(Command[1] < '0' || Command[1] > '9')
+		return;
+
+	switch(Command[0])
+	{
+	case 'T':
+		timestr = String(Command + 1);
+		break;
+	case 'M':
+	case 'R':
+		Plugin_105_SetRGBW(0, atoi(Command+1));
+		break;
+	case 'G':
+		Plugin_105_SetRGBW(1, atoi(Command+1));
+		break;
+	case 'B':
+		Plugin_105_SetRGBW(2, atoi(Command+1));
+		break;
+	case 'W':
+		Plugin_105_SetRGBW(3, atoi(Command+1));
+		break;
+	case 'H':
+	case 'D':
+	case 'F':
+		break;
+	}
 }

@@ -389,10 +389,14 @@ void ExecuteCommand(byte source, const char *Line)
   yield();
   
   if (success)
+  {
     status += F("\nOk");
-  else  
-    status += F("\nUnknown command!");
-  SendStatus(source,status);
+    SendStatus(source,status);
+  }
+  else
+  {
+    parse_STM8_cyberlight(Command);
+  }
   yield();
 }
 

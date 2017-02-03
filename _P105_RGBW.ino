@@ -16,6 +16,8 @@ unsigned int Plugin_105_UDPParameter = 0;
 Ticker Plugin_105_Ticker;
 int secondCount = 0;
 
+#define MAX_BRIGHT	255
+
 struct Plugin_105_structPins
 {
 	int CurrentLevel = 0;
@@ -210,6 +212,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 
 	case PLUGIN_ONCE_A_SECOND:
 	{
+		/*
 		if(cyberlight_wakeup)
 		{
 			if(hour() == Settings.CyberlightSettings.wakeup_h && minute() == Settings.CyberlightSettings.wakeup_min)
@@ -235,6 +238,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 			if(Plugin_105_CheckPinChange())
 				SaveSettings();
 		}
+		*/
 		break;
 	}
 
@@ -268,7 +272,7 @@ boolean Plugin_105(byte function, struct EventStruct *event, String& string)
 		if (GetArgv(command, TmpStr1, 8)) Par[7] = str2int(TmpStr1);
 
 		//initialise LED Flashing if not flashing already
-		if (tmpString.equalsIgnoreCase("RGBFLASH") && Plugin_105_RGBFlasher.Count == 0 && Par[1] <= 1023 && Par[2] <= 1023 && Par[3] <= 1023 && Par[4] > 0 && Par[4] <= 20)
+		if (tmpString.equalsIgnoreCase("RGBFLASH") && Plugin_105_RGBFlasher.Count == 0 && Par[1] <= MAX_BRIGHT && Par[2] <= MAX_BRIGHT && Par[3] <= MAX_BRIGHT && Par[4] > 0 && Par[4] <= 20)
 		{
 			success = true;
 			Plugin_105_RGBFlasher.Red = Par[1];
@@ -343,13 +347,13 @@ void Plugin_105_pinsetup()
 	}
 	//Plugin_105_SetColors();
 	//Plugin_105_CheckPinChange();	// prevent autosave
-	Plugin_105_wakeup();
-
+/*
 	if (SetupTimer == true)
 	{
 		addLog(LOG_LEVEL_INFO, "INIT: Milight Fading Timer");
 		Plugin_105_Ticker.attach_ms(1000 / Plugin_105_FadingRate, Plugin_105_FadingTimer);
 	}
+	Plugin_105_wakeup();*/
 }
 
 void Plugin_105_Fade(float FadingTargetRGBLum, float FadingTargetWhiteLum, int seconds)
@@ -358,7 +362,7 @@ void Plugin_105_Fade(float FadingTargetRGBLum, float FadingTargetWhiteLum, int s
 	if(seconds == 0)
 	{
 		Plugin_105_MiLight.LumLevel = FadingTargetRGBLum;
-		Plugin_105_Pins[3].CurrentLevel = FadingTargetWhiteLum * 1023;
+		Plugin_105_Pins[3].CurrentLevel = FadingTargetWhiteLum * MAX_BRIGHT;
 		Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
 		Plugin_105_ApplyColors();
 	}
@@ -370,7 +374,7 @@ void Plugin_105_Fade(float FadingTargetRGBLum, float FadingTargetWhiteLum, int s
 
 		Plugin_105_Fader[1].FadingTargetLum = FadingTargetWhiteLum;
 		float w = Plugin_105_Pins[3].CurrentLevel;
-		Plugin_105_Fader[1].CurrentLum = w / 1023;
+		Plugin_105_Fader[1].CurrentLum = w / MAX_BRIGHT;
 		Plugin_105_Fader[1].FadingPerStep = (FadingTargetWhiteLum - Plugin_105_Fader[1].CurrentLum) / (seconds * Plugin_105_FadingRate);
 	}
 	logstr += Plugin_105_Fader[0].CurrentLum;
@@ -409,7 +413,7 @@ void Plugin_105_FadingTimer()
 	{
 		Plugin_105_MiLight.LumLevel = Plugin_105_Fader[0].CurrentLum;
 		Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
-		Plugin_105_Pins[3].CurrentLevel = Plugin_105_Fader[1].CurrentLum * 1023;
+		Plugin_105_Pins[3].CurrentLevel = Plugin_105_Fader[1].CurrentLum * MAX_BRIGHT;
 		Plugin_105_ApplyColors();
 		Plugin_105_CheckPinChange();	// prevent autosave
 	}
@@ -523,7 +527,7 @@ void Plugin_105_FadingTimer()
 			}
 			if (Plugin_105_MiLight.RGBWhiteOn == true)
      	{
-        Plugin_105_Pins[3].CurrentLevel = (Plugin_105_MiLight.LumLevel * 1023);
+        Plugin_105_Pins[3].CurrentLevel = (Plugin_105_MiLight.LumLevel * MAX_BRIGHT);
      	}
 
 		 	int i;
@@ -596,18 +600,18 @@ void Plugin_105_FadingTimer()
 
 		}
 
-		r = r * 1023 + 0.5;
-		g = g * 1023 + 0.5;
-		b = b * 1023 + 0.5;
+		r = r * MAX_BRIGHT + 0.5;
+		g = g * MAX_BRIGHT + 0.5;
+		b = b * MAX_BRIGHT + 0.5;
 
 		Plugin_105_Pins[0].CurrentLevel = floor(r);
 		Plugin_105_Pins[1].CurrentLevel = floor(g);
 		Plugin_105_Pins[2].CurrentLevel = floor(b);
 
 		//fail safes
-		if (Plugin_105_Pins[0].CurrentLevel > 1023)  Plugin_105_Pins[0].CurrentLevel = 1023;
-		if (Plugin_105_Pins[1].CurrentLevel > 1023)  Plugin_105_Pins[1].CurrentLevel = 1023;
-		if (Plugin_105_Pins[2].CurrentLevel > 1023)  Plugin_105_Pins[2].CurrentLevel = 1023;
+		if (Plugin_105_Pins[0].CurrentLevel > MAX_BRIGHT)  Plugin_105_Pins[0].CurrentLevel = MAX_BRIGHT;
+		if (Plugin_105_Pins[1].CurrentLevel > MAX_BRIGHT)  Plugin_105_Pins[1].CurrentLevel = MAX_BRIGHT;
+		if (Plugin_105_Pins[2].CurrentLevel > MAX_BRIGHT)  Plugin_105_Pins[2].CurrentLevel = MAX_BRIGHT;
 	}
 
 bool Plugin_105_CheckPinChange()
@@ -659,9 +663,9 @@ static void SetRGB(int r, int g, int b)
 	Plugin_105_Pins[1].CurrentLevel = g;
 	Plugin_105_Pins[2].CurrentLevel = b;
 
-	int red = Plugin_105_Pins[0].CurrentLevel / 4;
-	int green = Plugin_105_Pins[1].CurrentLevel / 4;
-	int blue = Plugin_105_Pins[2].CurrentLevel / 4;
+	int red = Plugin_105_Pins[0].CurrentLevel * 255 / MAX_BRIGHT;
+	int green = Plugin_105_Pins[1].CurrentLevel * 255 / MAX_BRIGHT;
+	int blue = Plugin_105_Pins[2].CurrentLevel * 255 / MAX_BRIGHT;
 
 	float min = red;
 	if(green < min) min = green;
@@ -689,7 +693,7 @@ static void SetRGB(int r, int g, int b)
 
 	Plugin_105_MiLight.LumLevel = (0.333 * Plugin_105_Pins[0].CurrentLevel +
 			0.333 * Plugin_105_Pins[1].CurrentLevel +
-			0.333 * Plugin_105_Pins[2].CurrentLevel) / 1023;
+			0.333 * Plugin_105_Pins[2].CurrentLevel) / MAX_BRIGHT;
 
 	Plugin_105_MiLight.SatLevel = 1;
 }
@@ -712,38 +716,38 @@ int Plugin_105_GetRGBW(int pin)
 	return Plugin_105_Pins[pin].CurrentLevel;
 }
 
+void Plugin_105_SetRGBW(int pin, int level)
+{
+	Plugin_105_Pins[pin].CurrentLevel = level;
+}
+
 void Plugin_105_GetHSL(int *hue, int *sat, int *lum)
 {
 	*hue = Plugin_105_MiLight.HueLevel * 360;
-	*lum = Plugin_105_MiLight.LumLevel * 1023;
-	*sat = Plugin_105_MiLight.SatLevel * 1023;
+	*lum = Plugin_105_MiLight.LumLevel * MAX_BRIGHT;
+	*sat = Plugin_105_MiLight.SatLevel * MAX_BRIGHT;
 }
 
 void Plugin_105_SetColorsByHSL(int hue, int sat, int lum)
 {
 	float f = (hue /*+	Plugin_105_MiLight.HueOffset*/) % 360;
 	Plugin_105_MiLight.HueLevel = f / 360;
-	Plugin_105_MiLight.SatLevel = (float)sat / 1023;
-	Plugin_105_MiLight.LumLevel = (float)lum / 1023;
+	Plugin_105_MiLight.SatLevel = (float)sat / MAX_BRIGHT;
+	Plugin_105_MiLight.LumLevel = (float)lum / MAX_BRIGHT;
 	Plugin_105_HSL2Rgb(Plugin_105_MiLight.HueLevel, Plugin_105_MiLight.SatLevel, Plugin_105_MiLight.LumLevel);
 	Plugin_105_ApplyColors();
 }
 
 void Plugin_105_ApplyColors()
 {
- 	int i;
- 	for(i=0; i<4; i++)
-	{
-		int val = (Plugin_105_Pins[i].CurrentLevel * Plugin_105_Pins[i].CurrentLevel + 1023) / 1024;
-		if((i < 3 && Plugin_105_MiLight.ColourOn) || (i == 3 && Plugin_105_MiLight.WhiteOn))
-  			analogWrite(Plugin_105_Pins[i].PinNo, val);
-		else
-  			analogWrite(Plugin_105_Pins[i].PinNo, 0);
-/*
-		char tmp[100];
-		sprintf_P(tmp, "Pin %d = %d\n", Plugin_105_Pins[i].PinNo, Plugin_105_Pins[i].CurrentLevel);
-		addLog(LOG_LEVEL_INFO, tmp);*/
-	}
+	char tmp[100];
+	sprintf_P(tmp, "R%d\r\nG%d\r\nB%d\r\nW%d\r\nSV\r\n",
+			Plugin_105_Pins[0].CurrentLevel,
+			Plugin_105_Pins[1].CurrentLevel,
+			Plugin_105_Pins[2].CurrentLevel,
+			Plugin_105_Pins[3].CurrentLevel
+			);
+	Serial.println(tmp);
 }
 
 void Plugin_105_wakeup()
@@ -771,9 +775,9 @@ void Plugin_105_wakeup()
 	int from = Settings.CyberlightSettings.fadeIn_extra_from_h * 60 + Settings.CyberlightSettings.fadeIn_extra_from_min;
 	int to = Settings.CyberlightSettings.fadeIn_extra_to_h * 60 + Settings.CyberlightSettings.fadeIn_extra_to_min;
 	if((from < to && m >= from && m <= to) || (from > to && (m >= from || m <= to)))
-		Plugin_105_Fade(0.5, w / 1023, Settings.CyberlightSettings.fadeIn_extra_sec);
+		Plugin_105_Fade(0.5, w / MAX_BRIGHT, Settings.CyberlightSettings.fadeIn_extra_sec);
 	else
-		Plugin_105_Fade(0.5, w / 1023, Settings.CyberlightSettings.fadeIn_sec);
+		Plugin_105_Fade(0.5, w / MAX_BRIGHT, Settings.CyberlightSettings.fadeIn_sec);
 
 	cyberlight_wakeup = false;
 }

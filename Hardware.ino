@@ -62,5 +62,5 @@ void hardwareInit()
     }
   }
 
-  Plugin_105_pinsetup();
+  //Plugin_105_pinsetup();
 }

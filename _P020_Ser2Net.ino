@@ -186,8 +186,8 @@ boolean Plugin_020(byte function, struct EventStruct *event, String& string)
               if (count > BUFFER_SIZE)
                 count = BUFFER_SIZE;
               bytes_read = ser2netClient.read(net_buf, count);
-              Serial.write(net_buf, bytes_read);
-              Serial.flush(); // Waits for the transmission of outgoing serial data to complete
+              //Serial.write(net_buf, bytes_read);
+              //Serial.flush(); // Waits for the transmission of outgoing serial data to complete
 
               if (count == BUFFER_SIZE) // if we have a full buffer, drop the last position to stuff with string end marker
               {
