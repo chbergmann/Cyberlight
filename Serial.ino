@@ -28,8 +28,8 @@ void serial()
     if (SerialInByte == '\n')
     {
       InputBuffer_Serial[SerialInByteCounter] = 0; // serial data completed
-      Serial.write('>');
-      Serial.println(InputBuffer_Serial);
+      //Serial.write('>');
+      //Serial.println(InputBuffer_Serial);
       String action = InputBuffer_Serial;
       struct EventStruct TempEvent;
       parseCommandString(&TempEvent, action);

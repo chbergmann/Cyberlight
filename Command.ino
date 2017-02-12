@@ -395,7 +395,7 @@ void ExecuteCommand(byte source, const char *Line)
   }
   else
   {
-    parse_STM8_cyberlight(Command);
+    parse_STM8_cyberlight(Line);
   }
   yield();
 }

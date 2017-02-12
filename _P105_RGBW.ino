@@ -662,7 +662,11 @@ static void SetRGB(int r, int g, int b)
 	Plugin_105_Pins[0].CurrentLevel = r;
 	Plugin_105_Pins[1].CurrentLevel = g;
 	Plugin_105_Pins[2].CurrentLevel = b;
+	calc_hue();
+}
 
+void calc_hue()
+{
 	int red = Plugin_105_Pins[0].CurrentLevel * 255 / MAX_BRIGHT;
 	int green = Plugin_105_Pins[1].CurrentLevel * 255 / MAX_BRIGHT;
 	int blue = Plugin_105_Pins[2].CurrentLevel * 255 / MAX_BRIGHT;
@@ -719,6 +723,7 @@ int Plugin_105_GetRGBW(int pin)
 void Plugin_105_SetRGBW(int pin, int level)
 {
 	Plugin_105_Pins[pin].CurrentLevel = level;
+	calc_hue();
 }
 
 void Plugin_105_GetHSL(int *hue, int *sat, int *lum)
@@ -741,7 +746,7 @@ void Plugin_105_SetColorsByHSL(int hue, int sat, int lum)
 void Plugin_105_ApplyColors()
 {
 	char tmp[100];
-	sprintf_P(tmp, "R%d\r\nG%d\r\nB%d\r\nW%d\r\nSV\r\n",
+	sprintf_P(tmp, "R%d\r\nG%d\r\nB%d\r\nW%d",
 			Plugin_105_Pins[0].CurrentLevel,
 			Plugin_105_Pins[1].CurrentLevel,
 			Plugin_105_Pins[2].CurrentLevel,

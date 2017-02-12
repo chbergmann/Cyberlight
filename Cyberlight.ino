@@ -4,6 +4,7 @@
 
 boolean cyberlight_wakeup = false;
 String timestr = "zeitlos";
+String modestr = "M0";
 
 void handle_cyberlight()
 {
@@ -15,13 +16,11 @@ void handle_cyberlight()
   String hue = WebServer.arg("HUE");
   String lum = WebServer.arg("LUM");
   String rgb = WebServer.arg("RGB");
-  boolean setByTime = Settings.plugin105_setColorByTime;
 
   if(red != "")
   {
-    Settings.plugin105_setColorByTime = false;
     Plugin_105_SetRGBW(red.toInt(), grn.toInt(), blu.toInt(), whi.toInt());
-    Settings.plugin105_setColorByTime = setByTime;
+	SetMode("M0");
   }
 
   if(rgb != "")
@@ -31,37 +30,34 @@ void handle_cyberlight()
     int g = (rgb_i & 0xFF00) >> 8;
     int b = (rgb_i & 0xFF);
     Plugin_105_SetRGB(r, g, b);
+	SetMode("M0");
   }
 
   if(hue != "")
   {
     Plugin_105_SetColorsByHSL(hue.toInt(), 255, lum.toInt());
-    setByTime = (byTime == "on");
-
-    if(setByTime != Settings.plugin105_setColorByTime)
-    {
-      Settings.plugin105_setColorByTime = setByTime;
-      Plugin_105_SetColors();
-      SaveSettings();
-    }
+	SetMode("M0");
   }
 
-
-  if(WebServer.arg("xButton") == "M1")
+  if(WebServer.arg("xButton") == "Fade1")
   {
-	  Serial.println("M1\r\nSV\r\n");
+	  SetMode("M1");
   }
-  if(WebServer.arg("xButton") == "M2")
+  if(WebServer.arg("xButton") == "Fade2")
   {
-	  Serial.println("M2\r\nSV\r\n");
+	  SetMode("M2");
   }
-  if(WebServer.arg("xButton") == "M3")
+  if(WebServer.arg("xButton") == "Fade3")
   {
-	  Serial.println("M3\r\nSV\r\n");
+	  SetMode("M3");
+  }
+  if(WebServer.arg("xButton") == "Fade4")
+  {
+	  SetMode("M5");
   }
   if(WebServer.arg("xButton") == "Time")
   {
-	  Serial.println("M4\r\nSV\r\n");
+	  SetMode("M4");
   }
 
   int huelevel, sat, lumlevel;
@@ -99,10 +95,37 @@ void handle_cyberlight()
 
   html += timestr;
   html += F("<form id='alarmclockForm' method='post'>");
-  html += F("<input id='button' type='submit' name='xButton' value='M1'/>");
-  html += F("<input id='button' type='submit' name='xButton' value='M2'/>");
-  html += F("<input id='button' type='submit' name='xButton' value='M3'/>");
-  html += F("<input id='button' type='submit' name='xButton' value='Time'/>");
+
+  html += F("<input type='submit' name='xButton' value='Fade1' id='button_");
+  if(modestr == "M1")
+	html += "on'/>";
+  else
+	html += "off'/>";
+
+  html += F("<input type='submit' name='xButton' value='Fade2' id='button_");
+  if(modestr == "M2")
+	html += "on'/>";
+  else
+	html += "off'/>";
+
+  html += F("<input type='submit' name='xButton' value='Fade3' id='button_");
+  if(modestr == "M3")
+	html += "on'/>";
+  else
+	html += "off'/>";
+
+  html += F("<input type='submit' name='xButton' value='Fade4' id='button_");
+  if(modestr == "M5")
+	html += "on'/>";
+  else
+	html += "off'/>";
+
+  html += F("<input type='submit' name='xButton' value='Time' id='button_");
+  if(modestr == "M4")
+    html += "on'/>";
+  else
+	html += "off'/>";
+
   html += F("</form></p><a href='clconfig'>Config</a>");
   html += F("</body></html>");
 
@@ -132,40 +155,64 @@ String print_style()
   html += F("#R { background-color:red; }");
   html += F("#G { background-color:green; }");
   html += F("#B { background-color:blue; }");
-  html += F("#W, #button { background-color:#FFFFCC; }");
+  html += F("#W { background-color:#FFFFCC; }");
   html += F("#HUE { background: linear-gradient(90deg, #FF0000, #FFFF00, #00FF00, #00FFFF, #0000FF, #FF00FF, #FF0000) }");
+ // html += F("#HUEr { background: linear-gradient(90deg, #FF0000, #FF00FF, #0000FF, #00FFFF, #00FF00, #FFFF00, #FF0000) }");
   html += F("#LUM { background: linear-gradient(90deg, black, #FFFFCC) }");
   html += F("#byTime: { transform:scale(4); margin:20px; }");
-  html += F("#R, #G, #B, #W, #HUE, #LUM { height:1em; padding-top:0.5em; padding-bottom:0.5em; }");
+  html += F("#R, #G, #B, #W, #HUE, #HUEr, #LUM { height:1em; padding-top:0.5em; padding-bottom:0.5em; }");
   html += F("input { font-size:xx-large; text-align:center;  }");
   html += F("input[type='range'] { height:1em; width:100%; margin:0; padding:0; }");
-  html += F("input[type='checkbox']{ transform: scale(3); margin-left:15px; }");
-  html += F("input[type='submit']{ width:15%; margin:1em; text-align:center; }");
+//  html += F("input[type='checkbox']{ transform: scale(3); margin-left:15px; }");
+//  html += F("input[type='submit']{ width:15%; margin:1em; text-align:center; }");
+  html += F("input[type='text']{ width:3em; }");
   html += F("#Time { width:10%; }");
   html += F("table { width:100%; font-size:xx-large; }");
-  html += F("a, #button {padding:5px 15px; background-color:#0077dd; color:#fff; border:solid 1px #fff; text-decoration:none}");
+  html += F("a, #button, #button_off, #button_on {padding:5px 15px; margin:1em; background-color:#0077dd; color:#fff; border:solid 1px #fff; text-decoration:none}");
+  html += F("#button_off {background-color:gray; border:solid 1px; }");
+  html += F("#button_on {background-color:#0077dd; }");
   html += F("</style>");
   return html;
 }
 
 void handle_clconfig()
 {
-  String action = WebServer.arg("action");
-  if(action == "Save")
+  String huestr = WebServer.arg("HUE");
+  String byTime = WebServer.arg("byTime");
+  if(huestr != "")
   {
-    Settings.CyberlightSettings.wakeup_h = WebServer.arg("Wake_h").toInt();
-    Settings.CyberlightSettings.wakeup_min = WebServer.arg("Wake_min").toInt();
-    Settings.plugin105_setColorByTime = (WebServer.arg("byTime") == "on");
-    Settings.plugin105_hueOffsetMidnight = WebServer.arg("hueoffset").toInt();
-    Settings.CyberlightSettings.fadeIn_sec = WebServer.arg("fadeIn_sec").toInt();
-    Settings.CyberlightSettings.fadeOut_sec = WebServer.arg("fadeOut_sec").toInt();
-    Settings.CyberlightSettings.fadeIn_extra_sec = WebServer.arg("fadeIn_extra_sec").toInt();
-    Settings.CyberlightSettings.fadeIn_extra_from_h = WebServer.arg("fadeIn_extra_from_h").toInt();
-    Settings.CyberlightSettings.fadeIn_extra_from_min = WebServer.arg("fadeIn_extra_from_min").toInt();
-    Settings.CyberlightSettings.fadeIn_extra_to_h = WebServer.arg("fadeIn_extra_to_h").toInt();
-    Settings.CyberlightSettings.fadeIn_extra_to_min = WebServer.arg("fadeIn_extra_to_min").toInt();
-    Plugin_105_SetColors();
-    SaveSettings();
+    Settings.plugin105_hueOffsetMidnight = WebServer.arg("HUE").toInt();
+    Serial.println("CD\nH" + huestr + "\nSV");
+  }
+
+  if(byTime == "Set by time")
+  {
+	  SetMode("M4");
+  }
+  if(byTime == "Timer off")
+  {
+	  SetMode("M0");
+  }
+
+  String timestr2;
+  if(WebServer.arg("setTime") == "Set")
+  {
+	  const char weekdays[7][4] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+	  String wday = WebServer.arg("wday");
+	  String wday2 = "00";
+	  int i;
+	  for(i=0; i<7; i++)
+	  {
+		  if(wday == String(weekdays[i]))
+		  {
+			  wday2 = "0" + String(i);
+			  break;
+		  }
+	  }
+
+	  timestr2 = WebServer.arg("sec") + WebServer.arg("min") + WebServer.arg("hour") +
+			  wday2 + WebServer.arg("mday") + WebServer.arg("mon") + "00";
+	  Serial.println("ST" + timestr2);
   }
 
   String html = F("<html><head><title>Cyberlight Config</title>");
@@ -178,68 +225,56 @@ void handle_clconfig()
   html += F("<div id='left'>");
   html += F("<p><a href='espeasy'>System Settings</a></p>");
   html += F("<p><form id='configForm' method='post'>");
-  html += F("<table>");
+  html += F("<input type='submit' name='byTime' id='button_");
+  if(modestr == "M4")
+    html += "on' value='Timer off'/>";
+  else
+	html += "off' value='Set by time'/>";
 
-  html += F("<tr><td>Wake up at</td><td><input type='text' id='Time' name='Wake_h' value='");
-  html += Settings.CyberlightSettings.wakeup_h;
-  html += F("'/>:<input type='text' id='Time' name='Wake_min' value='");
-  if(Settings.CyberlightSettings.wakeup_min < 10)
-    html += F("0");
-  html += Settings.CyberlightSettings.wakeup_min;
-  html += F("'/></td></tr>");
-
-  html += F("<tr><td>Set colors by time</td>");
-  html += F("<td><input id='byTime' type='checkbox' name='byTime'");
-  if(Settings.plugin105_setColorByTime)
-    html += " checked";
-  html += F("/></td></tr>");
-
-  html += F("<TR><TD>Hue offset at midnight:<TD><input type='text' name='hueoffset' value='");
+  html += "<br><br>Color at midnight:<br>";
+  html += F("<div id='HUE'><input id='HUE' min='0' max='255' type='range' name='HUE' value='");
   html += Settings.plugin105_hueOffsetMidnight;
-  html += F("'/></td></tr>");
+  html += F("' onchange='submit()'/></div>");
+  html += F("</form>");
 
-  html += F("<tr><td>Fade in</td><td><input type='text' id='fadeIn_sec' name='fadeIn_sec' value='");
-  html += Settings.CyberlightSettings.fadeIn_sec;
-  html += F("'/> seconds</td></tr>");
-
-  html += F("<tr><td>Fade out</td><td><input type='text' id='fadeOut_sec' name='fadeOut_sec' value='");
-  html += Settings.CyberlightSettings.fadeOut_sec;
-  html += F("'/> seconds</td></tr>");
-
-  html += F("<tr><td colspan='2'><br>Use this fade in time in time interval:</td></tr>");
-  html += F("<tr><td>Fade in</td><td><input type='text' name='fadeIn_extra_sec' value='");
-  html += Settings.CyberlightSettings.fadeIn_extra_sec;
-  html += F("'/> seconds</td></tr>");
-
-  html += F("<tr><td>From</td>");
-  html += F("<td><input type='text' id='Time' name='fadeIn_extra_from_h' value='");
-  html += Settings.CyberlightSettings.fadeIn_extra_from_h;
-  html += F("'/>:<input type='text' id='Time' name='fadeIn_extra_from_min' value='");
-  if(Settings.CyberlightSettings.fadeIn_extra_from_min < 10)
-    html += F("0");
-  html += Settings.CyberlightSettings.fadeIn_extra_from_min;
-  html += F("'/></td></tr>");
-
-  html += F("<tr><td>To</td>");
-  html += F("<td><input type='text' id='Time' name='fadeIn_extra_to_h' value='");
-  html += Settings.CyberlightSettings.fadeIn_extra_to_h;
-  html += F("'/>:<input type='text' id='Time' name='fadeIn_extra_to_min' value='");
-  if(Settings.CyberlightSettings.fadeIn_extra_to_min < 10)
-    html += F("0");
-  html += Settings.CyberlightSettings.fadeIn_extra_to_min;
-  html += F("'/></td></tr></table><br>");
-
+  if(timestr2 == "")
+  {
+	  html += F("<p><form id='timeForm' method='post'>");
+	  html += F("<table><tr><td>Time</td><td>");
+	  html += F("<input type='text' name='hour' value='");
+	  html += timestr.substring(0,2);
+	  html += F("'/></td><td>:<input type='text' name='min' value='");
+	  html += timestr.substring(3,5);
+	  html += F("'/></td><td>:<input type='text' name='sec' value='");
+	  html += timestr.substring(6,8);
+	  html += F("'/></td><td><input type='text' name='wday' value='");
+	  html += timestr.substring(9,12);
+	  html += F("'/></td><td><input type='text' name='mday' value='");
+	  html += timestr.substring(13,15);
+	  html += F("'/></td><td>.<input type='text' name='mon' value='");
+	  html += timestr.substring(16,18);
+	  html += F("'/></td><td><input type='submit' id='button' name='setTime' value='Set'></td></tr></table></form>");
+  }
+  else
+  {
+	  html += F("Time changed.<br>");
+  }
   html += F("<a href='.'>Back</a> ");
-  html += F("<input id='button' type='submit' name='action' value='Save'/></form>");
   html += F("</div></body></html>");
 
   WebServer.send(200, "text/html", html);
 }
 
-void parse_STM8_cyberlight(char *Command)
+void parse_STM8_cyberlight(const char *Command)
 {
 	if(Command[1] < '0' || Command[1] > '9')
 		return;
+/*
+	if(Command[0] == 'T')
+		timestr = String(Command);
+	else
+		timestr += " " + String(Command);
+*/
 
 	switch(Command[0])
 	{
@@ -247,6 +282,8 @@ void parse_STM8_cyberlight(char *Command)
 		timestr = String(Command + 1);
 		break;
 	case 'M':
+		modestr = String(Command);
+		break;
 	case 'R':
 		Plugin_105_SetRGBW(0, atoi(Command+1));
 		break;
@@ -260,8 +297,16 @@ void parse_STM8_cyberlight(char *Command)
 		Plugin_105_SetRGBW(3, atoi(Command+1));
 		break;
 	case 'H':
+		Settings.plugin105_hueOffsetMidnight = atoi(Command+1);
+		break;
 	case 'D':
 	case 'F':
 		break;
 	}
+}
+
+void SetMode(String mode)
+{
+	modestr = mode;
+	Serial.println(mode + "\nSV");
 }
